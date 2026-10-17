@@ -1,10 +1,10 @@
 import type {AudioConvert as BridgeAudioConvert, CallerMediaWorkflowInput} from 'yt-dlp-bridge'
-import {isAudioConvertTargetLossy} from '@shared/audioTargets.js'
-import {siteForJob} from '@shared/sites/index.js'
-import {ytDlpSubtitleLanguages} from '@shared/subtitleLanguages.js'
-import type {AudioConvert, ResolvedStartDownloadInput} from '@shared/types.js'
-import {YOUTUBE_SINGLE_VIDEO_PLAYER_CLIENTS} from '@shared/youtubePlayerClients.js'
-import {compiledOutputTemplate} from './phaseHelpers.js'
+import {isAudioConvertTargetLossy} from './audioTargets.js'
+import {siteForJob} from './sites/index.js'
+import {ytDlpSubtitleLanguages} from './subtitleLanguages.js'
+import type {AudioConvert, ResolvedStartDownloadInput} from './types.js'
+import {YOUTUBE_SINGLE_VIDEO_PLAYER_CLIENTS} from './youtubePlayerClients.js'
+import {compiledOutputTemplate} from './filenameTemplate.js'
 
 export type MediaJob = Exclude<ResolvedStartDownloadInput['job'], {kind: 'subtitle-only'}>
 
@@ -24,8 +24,9 @@ function bridgeAudioConvert(input: AudioConvert): BridgeAudioConvert {
 	return {...input, lossy: isAudioConvertTargetLossy(input.target)}
 }
 
-// The single source of the media request, shared by VideoPhase and the download
-// smoke so a smoke run exercises exactly what a queued download sends.
+// The single source of the media request, shared by VideoPhase, the download
+// smoke and the Android shell, so every shell sends exactly what a queued
+// download sends.
 export function buildMediaRequest(params: MediaRequestParams): CallerMediaWorkflowInput {
 	const {url, job, outputDir, tempDir, embed, infoJsonPath} = params
 	// SponsorBlock applicability is owned by the Site adapter — currently

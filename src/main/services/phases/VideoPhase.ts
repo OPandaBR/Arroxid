@@ -13,7 +13,7 @@ import {TEMP_DIR_NAME} from '../download/cleanup.js'
 import {hideTempDirRoot, normalizeCreatedPath} from '../download/tempDirVisibility.js'
 import type {Phase, PhaseContext, PhaseOutcome} from './types.js'
 import {buildYtDlpSignal, canSpawnSignedIn, exploreSignedOut} from './phaseHelpers.js'
-import {buildMediaRequest} from './mediaRequest.js'
+import {buildMediaRequest} from '@shared/mediaRequest.js'
 import {identityFor} from '../exploreGate.js'
 import {settleWithExploreSession} from './signedInFlow.js'
 

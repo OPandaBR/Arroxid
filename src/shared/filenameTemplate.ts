@@ -443,3 +443,23 @@ export function previewFilenameTemplate(template: string, sample: 'video' | 'pla
 	const filename = `${renderSegment(parsed.file, meta)}.${SAMPLE_EXT}`
 	return [...dirs, filename].join('/')
 }
+
+/**
+ * Compile a job's Arroxy filename template into the yt-dlp output template that
+ * reaches `-o`. Called only by the shells that spawn yt-dlp (Electron main,
+ * the Android shell), never by UI code: `-o` accepts absolute paths and `../`, so compiling
+ * at spawn time means the only strings that can ever reach it are built from
+ * the allowlisted token grammar.
+ *
+ * Anything that fails to parse falls back to the built-in default rather than
+ * emitting a broken argument or failing the download — a persisted template can
+ * go stale through hand-edited config or a token removed in a later release.
+ */
+export function compiledOutputTemplate(filenameTemplate: string | undefined): string | undefined {
+	if (filenameTemplate === undefined) return undefined
+	const compiled = compileFilenameTemplate(filenameTemplate)
+	if (compiled.ok) return compiled.template
+	const fallback = compileFilenameTemplate(DEFAULT_FILENAME_TEMPLATE)
+	if (!fallback.ok) throw new Error('invariant: the default filename template must compile')
+	return fallback.template
+}

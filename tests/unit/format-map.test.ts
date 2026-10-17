@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vite-plus/test'
-import {mapFormats} from '@main/services/probeFormatMapping.js'
+import {mapFormats} from '@shared/ytdlp/probeFormatMapping.js'
 
 describe('mapFormats', () => {
 	it('returns raw format_id without composing audio selector', () => {

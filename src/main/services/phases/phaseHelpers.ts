@@ -1,4 +1,3 @@
-import {compileFilenameTemplate, DEFAULT_FILENAME_TEMPLATE} from '@shared/filenameTemplate.js'
 import {STATUS_KEY} from '@shared/schemas.js'
 import type {SiteId} from '@shared/sites/types.js'
 import type {LocalizedError} from '@shared/types.js'
@@ -66,23 +65,4 @@ export function buildYtDlpSignal(ctx: PhaseContext, active: ActiveJob, extra: Om
 		onStdout: extraOnStdout ?? (text => ctx.safeConsume(text)),
 		onStderr: extraOnStderr ?? (text => ctx.safeConsume(text))
 	}
-}
-
-/**
- * Compile a job's Arroxy filename template into the yt-dlp output template that
- * reaches `-o`. Owned by main, not the renderer: `-o` accepts absolute paths and
- * `../`, so compiling here means the only strings that can ever reach it are
- * built from the allowlisted token grammar.
- *
- * Anything that fails to parse falls back to the built-in default rather than
- * emitting a broken argument or failing the download — a persisted template can
- * go stale through hand-edited config or a token removed in a later release.
- */
-export function compiledOutputTemplate(filenameTemplate: string | undefined): string | undefined {
-	if (filenameTemplate === undefined) return undefined
-	const compiled = compileFilenameTemplate(filenameTemplate)
-	if (compiled.ok) return compiled.template
-	const fallback = compileFilenameTemplate(DEFAULT_FILENAME_TEMPLATE)
-	if (!fallback.ok) throw new Error('invariant: the default filename template must compile')
-	return fallback.template
 }

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vite-plus/test'
-import {buildMediaRequest, type MediaJob} from '@main/services/phases/mediaRequest.js'
+import {buildMediaRequest, type MediaJob} from '@shared/mediaRequest.js'
 import type {EmbedOptions} from '@shared/preparedJob.js'
 
 const EMBED_OFF: EmbedOptions = {chapters: false, metadata: false, thumbnail: false, description: false, thumbnailSidecar: false}

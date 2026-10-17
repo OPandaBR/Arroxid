@@ -1,8 +1,8 @@
-import type {FormatOption} from '@shared/types.js'
-import type {YtDlpFormat} from '@shared/ytdlp/infoDict.js'
-import {sortFormatsByQuality} from '@shared/qualitySorter.js'
-import {humanSize} from '@shared/format.js'
-import {audioTrackLabel, audioTrackQuality, isDefaultAudio, isOriginalAudio} from '@shared/audioTrackMeta.js'
+import type {FormatOption} from '../types.js'
+import type {YtDlpFormat} from './infoDict.js'
+import {sortFormatsByQuality} from '../qualitySorter.js'
+import {humanSize} from '../format.js'
+import {audioTrackLabel, audioTrackQuality, isDefaultAudio, isOriginalAudio} from '../audioTrackMeta.js'
 
 // yt-dlp formats → the labelled, quality-sorted options the format picker shows.
 
