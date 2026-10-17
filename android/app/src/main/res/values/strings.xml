@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Arroxy</string>
+    <string name="title_activity_main">Arroxy</string>
+    <string name="package_name">com.arroxy.app</string>
+    <string name="custom_url_scheme">com.arroxy.app</string>
+    <string name="notification_channel_downloads">Downloads</string>
+    <string name="notification_downloading">Downloading…</string>
+</resources>

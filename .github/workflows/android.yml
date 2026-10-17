@@ -1,0 +1,61 @@
+name: Android
+
+# Builds the Android shell: the renderer bundle for the WebView, then one debug
+# APK per ABI. Runs when the Android shell or the code it reuses changes, and on
+# demand. Publishing an Android release is not wired up yet.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['src/android/**', 'src/shared/**', 'src/renderer/**', 'packages/**', 'android/**', 'capacitor.config.json', 'package.json', 'bun.lock', '.github/workflows/android.yml']
+  push:
+    branches: [main]
+    paths: ['src/android/**', 'src/shared/**', 'src/renderer/**', 'packages/**', 'android/**', 'capacitor.config.json', 'package.json', 'bun.lock', '.github/workflows/android.yml']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  BUN_VERSION: '1.4.2'
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the WebView bundle and sync it into the Android project
+        run: bun run android:sync
+
+      - name: Build debug APKs
+        working-directory: android
+        env:
+          # Capacitor 8 compiles with Java 21; the runner image ships it alongside the default JDK.
+          JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: arroxy-android-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

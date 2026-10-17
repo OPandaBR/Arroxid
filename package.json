@@ -60,6 +60,10 @@
 		"dist:release:win": "bun run clean && bun run build && electron-builder --win --publish always",
 		"dist:release:mac": "bun run clean && bun run build && electron-builder --mac --publish always",
 		"dist:release:linux": "bun run clean && bun run build && ELECTRON_BUILDER_COMPRESSION_LEVEL=5 electron-builder --linux --publish always",
+		"android:build:web": "bun run errors:build && vp build --config src/android/vite.config.ts --mode android",
+		"android:sync": "bun run android:build:web && cap sync android",
+		"android:apk": "bun run android:sync && cd android && ./gradlew assembleDebug",
+		"android:apk:release": "bun run android:sync && cd android && ./gradlew assembleRelease",
 		"preview": "electron-vite preview",
 		"preview:installer": "electron-builder --mac dmg --arm64 --prepackaged dist/mac-arm64/Arroxy.app --publish never && node -e \"require('node:child_process').execFileSync('open', ['dist/Arroxy-mac-arm64.dmg'])\"",
 		"check:static": "bun run errors:build && vp check",
@@ -114,6 +118,7 @@
 	},
 	"dependencies": {
 		"@base-ui/react": "1.8.0",
+		"@capacitor/core": "8.5.3",
 		"@counterscale/tracker": "3.4.1",
 		"@fontsource/jetbrains-mono": "5.3.0",
 		"@fontsource/poppins": "5.3.0",
@@ -134,6 +139,7 @@
 		"lucide-react": "1.52.0",
 		"make-fetch-happen": "16.0.1",
 		"marked": "18.1.0",
+		"pathe": "2.0.3",
 		"react": "19.3.0",
 		"react-dom": "19.3.0",
 		"react-i18next": "17.0.16",
@@ -147,6 +153,8 @@
 		"zustand": "5.0.15"
 	},
 	"devDependencies": {
+		"@capacitor/android": "8.5.3",
+		"@capacitor/cli": "8.5.3",
 		"@iconify-json/logos": "1.2.15",
 		"@iconify-json/simple-icons": "1.2.99",
 		"@oxlint/plugins": "1.87.0",

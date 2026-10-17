@@ -17,6 +17,7 @@
 | E2E Cold Start                       | `e2e-cold-start.yml`           | PR/push `main` + dispatch               | **PR-tier startup verification** (journey harness) + packaged runtime smoke; Linux only                          |
 | E2E Fixtures                         | `e2e-fixtures.yml`             | PR/push `main` + dispatch               | fixture product E2E — acceptance for real user workflows                                                         |
 | Windows Installer                    | `installer-smoke.yml`          | PR/push `main`, `v*` tags + dispatch    | Windows installer build, cold-state install, install/uninstall cycle; builds the release's Windows artifacts     |
+| Android | `android.yml` | PR/push `main` (Android-relevant paths) + dispatch | WebView bundle + per-ABI debug APKs, uploaded as an artifact |
 | Flatpak Bundle                       | `flatpak.yml`                  | PR/push + dispatch                      | Flatpak build validation                                                                                         |
 | Deps vuln gate                       | `deps-vuln-gate.yml`           | PRs                                     | dependency vulnerability audit                                                                                   |
 | Release                              | `release.yml`                  | tag `v*`                                | verify-version → quality-gate → prepare-release → build → flatpak → publish-release, Scoop/Homebrew/web manifest |
