@@ -15,7 +15,10 @@ export function BootScreen(): ReactNode {
 			{boot.kind === 'failed' ? (
 				<div className="flex flex-col items-center gap-4">
 					<p className="text-[15px] text-ink">{t('boot.failed')}</p>
-					<p className="text-sm text-muted wrap-anywhere">{boot.message}</p>
+					<details className="w-full text-sm text-muted">
+						<summary className="py-1">{t('error.details')}</summary>
+						<p className="mt-2 max-h-40 overflow-auto rounded-xl bg-surface-2 p-3 text-left font-mono text-[12px] wrap-anywhere">{boot.message}</p>
+					</details>
 					<Button onClick={() => void start()}>
 						<RotateCw size={18} />
 						{t('boot.retry')}

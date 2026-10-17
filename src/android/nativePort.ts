@@ -105,8 +105,14 @@ export interface AndroidNativePort {
 	removeCookiesFile(): Promise<void>
 }
 
-const nativeInfoSchema = z.object({workDir: z.string().min(1), publicDir: z.string().min(1), ytDlpVersion: z.string().nullable()})
-const ytDlpUpdateSchema = z.object({updated: z.boolean(), ytDlpVersion: z.string().nullable()})
+// Android's JSONObject drops a key put with null, so an unknown version can
+// arrive missing; missing and null both mean "not known yet" (before the first update).
+const ytDlpVersionSchema = z
+	.string()
+	.nullish()
+	.transform(version => version ?? null)
+const nativeInfoSchema = z.object({workDir: z.string().min(1), publicDir: z.string().min(1), ytDlpVersion: ytDlpVersionSchema})
+const ytDlpUpdateSchema = z.object({updated: z.boolean(), ytDlpVersion: ytDlpVersionSchema})
 const ytDlpRunSchema = z.object({exitCode: z.number().int(), stdout: z.string(), stderr: z.string(), cancelled: z.boolean()})
 const publishSchema = z.object({files: z.array(z.object({name: z.string().min(1), relativePath: z.string().min(1), sizeBytes: z.number().int().nonnegative()}))})
 const runLineSchema = z.object({runId: z.string(), line: z.string()})

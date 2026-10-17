@@ -3,6 +3,7 @@ import {defaultAppSettings} from '@shared/constants.js'
 import {probeArgs} from '../../src/android/ytDlpArgs.js'
 import {progressNotice, resultNotice} from '../../src/android/ui/notices.js'
 import {pickAndroidUpdate} from '../../src/android/updateCheck.js'
+import {parseNativeInfo, parseYtDlpUpdate} from '../../src/android/nativePort.js'
 import {makeItem} from '../shared/fixtures.js'
 
 const COMMON = defaultAppSettings('Download/Pingo').common
@@ -66,5 +67,13 @@ describe('update check', () => {
 		expect(pickAndroidUpdate(release('v0.5.2', ['pingo-arm64-v8a-release.apk']), '0.5.2')).toBeNull()
 		expect(pickAndroidUpdate(release('v0.4.9', ['pingo-arm64-v8a-release.apk']), '0.5.2')).toBeNull()
 		expect(pickAndroidUpdate({nope: true}, '0.5.2')).toBeNull()
+	})
+})
+
+describe('native replies as Android sends them', () => {
+	// Android's JSONObject drops a key put with null, so "unknown" arrives as a missing key.
+	it('reads a missing yt-dlp version (first run, before any update) as unknown', () => {
+		expect(parseNativeInfo({workDir: '/data/user/0/com.arroxy.pingo/files/arroxy', publicDir: 'Download/Pingo'}).ytDlpVersion).toBeNull()
+		expect(parseYtDlpUpdate({updated: false}).ytDlpVersion).toBeNull()
 	})
 })

@@ -125,7 +125,7 @@ public class ArroxyNativePlugin extends Plugin {
                 JSObject result = new JSObject();
                 result.put("workDir", workDir().getAbsolutePath());
                 result.put("publicDir", SharedStorage.PUBLIC_DIR_LABEL);
-                result.put("ytDlpVersion", YoutubeDL.getInstance().version(context));
+                putNullable(result, "ytDlpVersion", YoutubeDL.getInstance().version(context));
                 call.resolve(result);
             } catch (Exception e) {
                 call.reject("Could not prepare yt-dlp: " + e.getMessage(), e);
@@ -141,7 +141,7 @@ public class ArroxyNativePlugin extends Plugin {
                 YoutubeDL.UpdateStatus status = YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel._NIGHTLY);
                 JSObject result = new JSObject();
                 result.put("updated", status == YoutubeDL.UpdateStatus.DONE);
-                result.put("ytDlpVersion", YoutubeDL.getInstance().version(context));
+                putNullable(result, "ytDlpVersion", YoutubeDL.getInstance().version(context));
                 call.resolve(result);
             } catch (Exception e) {
                 call.reject("yt-dlp update failed: " + e.getMessage(), e);
@@ -399,6 +399,11 @@ public class ArroxyNativePlugin extends Plugin {
     @PermissionCallback
     private void notificationsAnswered(PluginCall call) {
         resolveGranted(call, getPermissionState("notifications") == PermissionState.GRANTED);
+    }
+
+    // JSONObject.put(key, null) removes the key; send an explicit null instead.
+    private static void putNullable(JSObject object, String key, String value) {
+        object.put(key, value == null ? JSObject.NULL : value);
     }
 
     private static void resolveGranted(PluginCall call, boolean granted) {
