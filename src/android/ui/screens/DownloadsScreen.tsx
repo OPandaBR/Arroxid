@@ -1,4 +1,4 @@
-import {Ban, CheckCircle2, Film, FolderOpen, MoreHorizontal, Pause, Play, RotateCw, Trash2, TriangleAlert, X} from 'lucide-react'
+import {Ban, CheckCircle2, Film, FolderOpen, MoreHorizontal, Pause, Play, RotateCw, Share2, Trash2, TriangleAlert, X} from 'lucide-react'
 import {useContext, useState, type ReactNode} from 'react'
 import type {AppApi} from '@shared/api.js'
 import {QUEUE_STATUS, STATUS_KEY, type QueueItemStatus} from '@shared/schemas.js'
@@ -73,6 +73,8 @@ function itemActions(api: AppApi, item: QueueItem): {label: string; icon: ReactN
 function DownloadRow({item}: {item: QueueItem}): ReactNode {
 	const api = useContext(AppApiContext)
 	const openArtifact = useShell(state => state.openArtifact)
+	const shareArtifact = useShell(state => state.shareArtifact)
+	const shareFailure = useShell(state => state.shareFailure)
 	const [menuOpen, setMenuOpen] = useState(false)
 	if (!api) return null
 	const actions = itemActions(api, item)
@@ -121,7 +123,16 @@ function DownloadRow({item}: {item: QueueItem}): ReactNode {
 			) : null}
 			{menuOpen ? (
 				<div className="flex flex-wrap gap-2 border-t border-line px-3 py-2">
-					{(item.status === QUEUE_STATUS.done ? [{label: t('action.open'), icon: <Play size={18} />, run: () => void openArtifact(item)}, ...actions] : actions).map(action => (
+					{[
+						...(item.status === QUEUE_STATUS.done
+							? [
+									{label: t('action.open'), icon: <Play size={18} />, run: () => void openArtifact(item)},
+									{label: t('action.share'), icon: <Share2 size={18} />, run: () => void shareArtifact(item)}
+								]
+							: []),
+						...(item.status === QUEUE_STATUS.error ? [{label: t('action.shareError'), icon: <Share2 size={18} />, run: () => void shareFailure(item)}] : []),
+						...actions
+					].map(action => (
 						<button
 							key={action.label}
 							type="button"

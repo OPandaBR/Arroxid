@@ -4,7 +4,14 @@
     <string name="title_activity_main">Arroxy</string>
     <string name="package_name">com.arroxy.app</string>
     <string name="custom_url_scheme">com.arroxy.app</string>
-    <string name="share_target_label">Download with Arroxy</string>
-    <string name="notification_channel_downloads">Downloads</string>
+    <string name="share_target_label">Arroxy</string>
+    <string name="quick_share_label">Download now</string>
+    <string name="process_text_label">Download with Arroxy</string>
+    <string name="shortcut_paste_short">Paste link</string>
+    <string name="shortcut_paste_long">Paste a copied link</string>
+    <string name="shortcut_downloads_short">Downloads</string>
+    <string name="shortcut_downloads_long">See your downloads</string>
+    <string name="notification_channel_downloads">Download progress</string>
+    <string name="notification_channel_results">Finished downloads</string>
     <string name="notification_downloading">Downloading…</string>
 </resources>

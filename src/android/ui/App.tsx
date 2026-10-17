@@ -121,6 +121,15 @@ export function App({setDarkSystemBars}: {setDarkSystemBars: (dark: boolean) => 
 	useEffect(() => {
 		mainRef.current?.scrollTo({top: 0})
 	}, [tab])
+	// Coming back to Arroxy is the moment the desktop watcher would look at the clipboard.
+	const checkClipboard = useShell(state => state.checkClipboard)
+	useEffect(() => {
+		const onVisible = (): void => {
+			if (document.visibilityState === 'visible') void checkClipboard()
+		}
+		document.addEventListener('visibilitychange', onVisible)
+		return () => document.removeEventListener('visibilitychange', onVisible)
+	}, [checkClipboard])
 
 	if (boot.kind !== 'ready') return <BootScreen />
 	return (

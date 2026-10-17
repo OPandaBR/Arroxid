@@ -11,8 +11,11 @@
 | `src/android/nativePort.ts`, `capacitorAdapter.ts`                 | The port to the native side and its Capacitor adapter (replies parsed with zod)           |
 | `src/android/storage.ts`                                           | Settings and queue persistence (localStorage, read back through the shared schemas)       |
 | `src/android/vite.config.ts`, `src/android/shims/`                 | WebView build; `node:path`/`os`/`fs` shims for yt-dlp-bridge's planner                    |
-| `android/app/src/main/java/com/arroxy/app/ArroxyNativePlugin.java` | Native plugin: runs yt-dlp, publishes to `Download/Arroxy`, opens files, receives shares  |
-| `android/app/src/main/java/com/arroxy/app/KeepAliveService.java`   | Foreground service that keeps downloads running in the background                        |
+| `android/app/src/main/java/com/arroxy/app/ArroxyNativePlugin.java` | Native plugin: yt-dlp, files, share sheet, clipboard, notifications, cookies picker       |
+| `android/app/src/main/java/com/arroxy/app/LaunchIntents.java`      | Share targets, "Download now", selected-text menu and launcher shortcuts → one launch     |
+| `android/app/src/main/java/com/arroxy/app/SharedStorage.java`      | Download/Arroxy through MediaStore: publish, find a saved file                            |
+| `android/app/src/main/java/com/arroxy/app/DownloadNotifications.java`, `KeepAliveService.java` | Live progress notification (foreground service) and finished/failed notifications |
+| `src/android/ui/notices.ts`, `src/android/updateCheck.ts`          | What the notifications say, and the release check                                         |
 | `android/app/src/main/res/`                                        | Adaptive + themed launcher icon and Android 12+ splash, all vector                        |
 | `capacitor.config.json`, `.github/workflows/android.yml`           | Capacitor project config; CI that builds the APKs                                         |
 | `tests/unit/android-*.test.ts`                                     | Argv, probe, queue, storage, download plan, UI state and formatting tests                 |
@@ -79,6 +82,29 @@ Deliberately not the desktop's (no mascot, no blue glass, no Poppins):
 - **Type and shape:** the phone's own typeface (Google Sans / Roboto), Material-
   style pills, large rounded cards, a bottom navigation bar with a pill indicator.
 
+## Desktop integrations, and what they became on Android
+
+Every integration the desktop app has with its operating system was checked
+against what Android offers; each has a phone counterpart or a stated reason not to.
+
+| Desktop                                                               | Android                                                                                                                                                                                                      |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Global hotkey: queue the copied link with the active profile, no window | **"Download now"** share target (an `activity-alias`): queues a video with the active quality, confirms in a notification and returns to the app the link came from. A playlist still opens for review. |
+| Paste / drop a link                                                   | "Share → Arroxy" (review), **"Arroxy" in the selected-text menu** (`PROCESS_TEXT`), launcher shortcuts **Paste link** and **Downloads**, native Paste button.                                              |
+| Clipboard watch (only while the window is focused)                    | When Arroxy comes back to the front, a link copied since the last look is offered on Download. Only a newer clip is read (its timestamp is checked first), so Android's "pasted from clipboard" toast shows once per clip. Same setting, on by default. |
+| Tray: downloads go on with the window closed                          | Foreground service with a **live progress notification** (title, %, speed, ETA, waiting count) and a **Pause all** action.                                                                                 |
+| OS notifications                                                      | One notification per finished (tap opens the file) or failed download, while Arroxy is not in front.                                                                                                       |
+| Open folder / reveal file                                             | Open the Downloads app; open a saved file in the app the user picks; **share a saved file** through the share sheet.                                                                                      |
+| Cookies from a file                                                   | System file picker → private copy → `--cookies`, the desktop's `file` cookies mode.                                                                                                                        |
+| Save / upload diagnostics, feedback form                              | **Share details** on a failed download (title, link, reason, yt-dlp output, versions) through the share sheet.                                                                                             |
+| Share Arroxy                                                          | Settings → Share Arroxy, through the share sheet.                                                                                                                                                          |
+| Update banner                                                         | The latest GitHub release is offered (Download screen and Settings) when it is newer **and ships an APK**. Releases do not ship one yet, so nothing shows until the release pipeline publishes it.          |
+| Window controls, zoom, GPU backdrop, close-to-tray choice             | Not applicable: the OS owns the task; text follows the system.                                                                                                                                             |
+| Explore (in-app browser sign-in)                                      | **Not ported.** Google refuses sign-in inside an embedded WebView, so the session could not be created; the cookies file covers age-restricted and members-only videos instead.                            |
+| Cookies from an installed browser                                     | Not possible: Android apps cannot read another app's cookies.                                                                                                                                              |
+| Daily heartbeat                                                       | **Not ported, pending a decision**: it reports to a server, and the dashboard has no Android platform yet.                                                                                                 |
+| Hotkey rebinding, homebrew/winget repair, binaries folder             | Not applicable.                                                                                                                                                                                            |
+
 ## Build
 
 Needs the Android SDK (platform 36, build-tools 36) and JDK 21.
@@ -100,7 +126,7 @@ APKs; signing is not set up. The version name and code come from the root
 - **No JS runtime for YouTube.** youtubedl-android ships no Deno/Node/QuickJS and
   there is no PO-token minting, so some YouTube formats can be missing or blocked
   where desktop would get them.
-- **Not on Android:** sign-in (Explore) and cookies, subtitles and SponsorBlock
+- **Not on Android:** Explore sign-in and browser cookies (see the table above), subtitles and SponsorBlock
   choices, custom download profiles and filename templates, automatic retry,
   playlist `.m3u`, choosing an output folder (everything goes to `Download/Arroxy`),
   diagnostics upload, in-app updates. Strings exist in English and Portuguese only.

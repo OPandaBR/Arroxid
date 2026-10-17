@@ -47,7 +47,7 @@ export function createAndroidAppApi(deps: AndroidAppApiDeps): AppApi {
 	const {native} = deps
 	const now = deps.now ?? (() => new Date().toISOString())
 	const newId = deps.newId ?? (() => crypto.randomUUID())
-	const settings = new AndroidSettingsStore(deps.store, {...defaultAppSettings(deps.publicDir), common: {...defaultAppSettings(deps.publicDir).common, exploreEnabled: false, hotkeyEnabled: false, clipboardWatchEnabled: false, analyticsEnabled: false}})
+	const settings = new AndroidSettingsStore(deps.store, {...defaultAppSettings(deps.publicDir), common: {...defaultAppSettings(deps.publicDir).common, exploreEnabled: false, hotkeyEnabled: false, clipboardWatchEnabled: true, analyticsEnabled: false}})
 
 	let nativeInfo: Promise<NativeInfo> | null = null
 	const prepare = (): Promise<NativeInfo> => {

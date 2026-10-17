@@ -1,5 +1,6 @@
 import {ArrowLeft, ArrowRight, AudioLines, CheckCircle2, Circle, ClipboardPaste, Film, Gauge, ListVideo, RotateCw, Share2, Sparkles, TriangleAlert, X} from 'lucide-react'
-import {useState, type ReactNode} from 'react'
+import {useContext, type ReactNode} from 'react'
+import {AppApiContext} from '../appApiContext.js'
 import type {PlaylistProbeResult, ProbeError, VideoProbeResult} from '@shared/types.js'
 import {activeQuality, QUALITY_CHOICES, type QualityChoiceId} from '../downloadPlan.js'
 import {formatDuration, hostOf} from '../format.js'
@@ -15,19 +16,7 @@ function LinkField(): ReactNode {
 	const draftUrl = useShell(state => state.draftUrl)
 	const setDraftUrl = useShell(state => state.setDraftUrl)
 	const lookUp = useShell(state => state.lookUp)
-	const [pasteFailed, setPasteFailed] = useState(false)
-
-	const paste = async (): Promise<void> => {
-		try {
-			const text = await navigator.clipboard.readText()
-			if (text.trim()) {
-				setDraftUrl(text.trim())
-				await lookUp(text)
-			}
-		} catch {
-			setPasteFailed(true)
-		}
-	}
+	const pasteFromClipboard = useShell(state => state.pasteFromClipboard)
 
 	return (
 		<form
@@ -53,13 +42,51 @@ function LinkField(): ReactNode {
 				<IconButton label={t('home.go')} type="submit" className="bg-ember text-on-ember active:bg-ember-strong" data-testid="link-go">
 					<ArrowRight size={20} />
 				</IconButton>
-			) : pasteFailed ? null : (
-				<Button tone="tonal" className="min-h-11 px-4" onClick={() => void paste()}>
+			) : (
+				<Button tone="tonal" className="min-h-11 px-4" onClick={() => void pasteFromClipboard()} data-testid="link-paste">
 					<ClipboardPaste size={18} />
 					{t('home.paste')}
 				</Button>
 			)}
 		</form>
+	)
+}
+
+// The desktop clipboard watch's suggestion: a link copied elsewhere, one tap away.
+function ClipboardSuggestion(): ReactNode {
+	const link = useShell(state => state.clipboardLink)
+	const applyLink = useShell(state => state.useClipboardLink)
+	const dismiss = useShell(state => state.dismissClipboardLink)
+	if (!link) return null
+	return (
+		<Card className="flex items-center gap-3 p-3 pl-4 animate-slide-up" testId="clipboard-suggestion">
+			<span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-ember-soft text-ember">
+				<ClipboardPaste size={20} />
+			</span>
+			<div className="min-w-0 flex-1">
+				<p className="text-[14px] font-medium text-ink">{t('home.clipboardTitle')}</p>
+				<p className="truncate text-[13px] text-muted">{link.replace(/^https?:\/\/(www\.)?/, '')}</p>
+			</div>
+			<Button className="min-h-10 px-4" onClick={() => void applyLink()} data-testid="clipboard-use">
+				{t('home.clipboardUse')}
+			</Button>
+			<IconButton label={t('home.clear')} onClick={dismiss}>
+				<X size={18} />
+			</IconButton>
+		</Card>
+	)
+}
+
+function UpdateNotice(): ReactNode {
+	const update = useShell(state => state.update)
+	const api = useContext(AppApiContext)
+	if (!update) return null
+	return (
+		<button type="button" onClick={() => void api?.shell.openExternal(update.url)} className="flex items-center gap-3 rounded-card bg-moss-soft p-4 text-left text-moss">
+			<Sparkles size={18} className="shrink-0" />
+			<span className="flex-1 text-sm font-medium">{t('settings.update', {version: update.version})}</span>
+			<span className="text-sm font-semibold">{t('settings.updateGet')}</span>
+		</button>
 	)
 }
 
@@ -74,6 +101,8 @@ function IdleHome(): ReactNode {
 				</div>
 			</div>
 			<LinkField />
+			<ClipboardSuggestion />
+			<UpdateNotice />
 			<div className="flex items-start gap-3 rounded-card border border-dashed border-line p-4 text-sm text-muted">
 				<Share2 size={18} className="mt-0.5 shrink-0 text-ember" />
 				<p>{t('home.shareTip')}</p>

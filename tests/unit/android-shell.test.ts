@@ -7,6 +7,7 @@ import {AndroidQueue, type QueuePersistence} from '../../src/android/queue.js'
 import {AndroidSettingsStore, createQueuePersistence, type KeyValueStore} from '../../src/android/storage.js'
 import {mediaArgs, probeArgs} from '../../src/android/ytDlpArgs.js'
 import {makeItem} from '../shared/fixtures.js'
+import {quietNative} from '../helpers/androidNative.js'
 
 const COMMON = defaultAppSettings('Download/Arroxy').common
 const OK_RUN: YtDlpRun = {exitCode: 0, stdout: '', stderr: '', cancelled: false}
@@ -22,9 +23,7 @@ interface PendingRun {
 function fakeNative(): {native: AndroidNativePort; runs: PendingRun[]; removed: string[]} {
 	const runs: PendingRun[] = []
 	const removed: string[] = []
-	const native: AndroidNativePort = {
-		prepare: () => Promise.resolve({workDir: '/data/work', publicDir: 'Download/Arroxy', ytDlpVersion: '2026.10.01'}),
-		updateYtDlp: () => Promise.resolve({updated: false, ytDlpVersion: '2026.10.01'}),
+	const native = quietNative({
 		runYtDlp: (runId, args, onLine) => new Promise(resolve => runs.push({runId, args, onLine: onLine ?? (() => undefined), finish: resolve})),
 		cancelRun: runId => {
 			const run = runs.find(entry => entry.runId === runId)
@@ -35,13 +34,8 @@ function fakeNative(): {native: AndroidNativePort; runs: PendingRun[]; removed: 
 		removeDir: dir => {
 			removed.push(dir)
 			return Promise.resolve()
-		},
-		openDownloads: () => Promise.resolve(),
-		openFile: () => Promise.resolve(),
-		openExternal: () => Promise.resolve(),
-		takeSharedText: () => Promise.resolve(null),
-		onShareArrived: () => () => undefined
-	}
+		}
+	})
 	return {native, runs, removed}
 }
 

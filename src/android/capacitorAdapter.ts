@@ -2,7 +2,7 @@
 // (android/app/src/main/java/com/arroxy/app/ArroxyNativePlugin.java).
 
 import {registerPlugin, type PluginListenerHandle} from '@capacitor/core'
-import {parseNativeInfo, parsePublished, parseRunLine, parseSharedText, parseYtDlpRun, parseYtDlpUpdate, type AndroidNativePort} from './nativePort.js'
+import {parseClipboard, parseGranted, parseLaunch, parseNativeInfo, parseNotificationAction, parsePicked, parsePublished, parseRunLine, parseYtDlpRun, parseYtDlpUpdate, type AndroidNativePort, type NotificationAction, type ProgressNotice, type ResultNotice} from './nativePort.js'
 
 // Raw plugin surface: every reply is `unknown` until nativePort.ts parses it.
 interface ArroxyNativePlugin {
@@ -14,9 +14,29 @@ interface ArroxyNativePlugin {
 	removeDir(input: {dir: string}): Promise<unknown>
 	openDownloads(): Promise<unknown>
 	openFile(input: {relativePath: string}): Promise<unknown>
+	shareFile(input: {relativePath: string}): Promise<unknown>
+	shareText(input: {text: string}): Promise<unknown>
 	openExternal(input: {url: string}): Promise<unknown>
-	takeSharedText(): Promise<unknown>
-	addListener(eventName: 'runLine' | 'sharedText', listener: (event: unknown) => void): Promise<PluginListenerHandle>
+	takeLaunch(): Promise<unknown>
+	readClipboard(input: {since: number}): Promise<unknown>
+	moveToBackground(): Promise<unknown>
+	requestNotifications(): Promise<unknown>
+	setProgressNotice(input: {notice: ProgressNotice | null}): Promise<unknown>
+	showResult(input: ResultNotice): Promise<unknown>
+	pickCookiesFile(): Promise<unknown>
+	removeCookiesFile(): Promise<unknown>
+	addListener(eventName: 'runLine' | 'launch' | 'notificationAction', listener: (event: unknown) => void): Promise<PluginListenerHandle>
+}
+
+function listeners<T>(): {add: (listener: (value: T) => void) => () => void; emit: (value: T) => void} {
+	const set = new Set<(value: T) => void>()
+	return {
+		add: listener => {
+			set.add(listener)
+			return () => set.delete(listener)
+		},
+		emit: value => set.forEach(listener => listener(value))
+	}
 }
 
 export function createCapacitorAdapter(): AndroidNativePort {
@@ -26,8 +46,13 @@ export function createCapacitorAdapter(): AndroidNativePort {
 		const parsed = parseRunLine(event)
 		if (parsed) lineListeners.get(parsed.runId)?.(parsed.line)
 	})
-	const shareListeners = new Set<() => void>()
-	void plugin.addListener('sharedText', () => shareListeners.forEach(listener => listener()))
+	const launches = listeners<undefined>()
+	void plugin.addListener('launch', () => launches.emit(undefined))
+	const notificationActions = listeners<NotificationAction>()
+	void plugin.addListener('notificationAction', event => {
+		const action = parseNotificationAction(event)
+		if (action) notificationActions.emit(action)
+	})
 
 	return {
 		prepare: async () => parseNativeInfo(await plugin.prepare()),
@@ -53,13 +78,32 @@ export function createCapacitorAdapter(): AndroidNativePort {
 		openFile: async relativePath => {
 			await plugin.openFile({relativePath})
 		},
+		shareFile: async relativePath => {
+			await plugin.shareFile({relativePath})
+		},
+		shareText: async text => {
+			await plugin.shareText({text})
+		},
 		openExternal: async url => {
 			await plugin.openExternal({url})
 		},
-		takeSharedText: async () => parseSharedText(await plugin.takeSharedText()),
-		onShareArrived: listener => {
-			shareListeners.add(listener)
-			return () => shareListeners.delete(listener)
+		takeLaunch: async () => parseLaunch(await plugin.takeLaunch()),
+		onLaunch: listener => launches.add(() => listener()),
+		readClipboard: async since => parseClipboard(await plugin.readClipboard({since})),
+		moveToBackground: async () => {
+			await plugin.moveToBackground()
+		},
+		requestNotifications: async () => parseGranted(await plugin.requestNotifications()),
+		setProgressNotice: async notice => {
+			await plugin.setProgressNotice({notice})
+		},
+		showResult: async notice => {
+			await plugin.showResult(notice)
+		},
+		onNotificationAction: listener => notificationActions.add(listener),
+		pickCookiesFile: async () => parsePicked(await plugin.pickCookiesFile()),
+		removeCookiesFile: async () => {
+			await plugin.removeCookiesFile()
 		}
 	}
 }

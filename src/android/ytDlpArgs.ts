@@ -16,7 +16,9 @@ import {YOUTUBE_SINGLE_VIDEO_PLAYER_CLIENTS} from '@shared/youtubePlayerClients.
 function shellArgs(common: CommonSettings, opts: {media: boolean}): string[] {
 	const proxy = common.proxyUrl?.trim()
 	const limitRate = opts.media ? common.limitRate?.trim() : undefined
-	return ['--encoding', 'utf-8', ...(proxy ? ['--proxy', proxy] : []), ...(limitRate ? ['--limit-rate', limitRate] : [])]
+	// Desktop's cookies "file" mode; the file is the private copy the picker made.
+	const cookies = common.cookiesMode === 'file' ? common.cookiesPath?.trim() : undefined
+	return ['--encoding', 'utf-8', ...(cookies ? ['--cookies', cookies] : []), ...(proxy ? ['--proxy', proxy] : []), ...(limitRate ? ['--limit-rate', limitRate] : [])]
 }
 
 export function probeArgs(input: ProbeInput, common: CommonSettings): string[] {

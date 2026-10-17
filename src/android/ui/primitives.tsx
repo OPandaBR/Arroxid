@@ -25,8 +25,12 @@ export function IconButton({label, className, children, ...rest}: ButtonHTMLAttr
 	)
 }
 
-export function Card({className, children}: {className?: string; children: ReactNode}): ReactNode {
-	return <section className={cx('rounded-card bg-surface shadow-lift', className)}>{children}</section>
+export function Card({className, children, testId}: {className?: string; children: ReactNode; testId?: string}): ReactNode {
+	return (
+		<section className={cx('rounded-card bg-surface shadow-lift', className)} data-testid={testId}>
+			{children}
+		</section>
+	)
 }
 
 export function ProgressBar({percent, indeterminate = false, tone = 'ember'}: {percent: number; indeterminate?: boolean; tone?: 'ember' | 'moss' | 'muted'}): ReactNode {
@@ -59,5 +63,13 @@ export function ScreenHeader({title, subtitle, trailing}: {title: string; subtit
 			</div>
 			{trailing}
 		</header>
+	)
+}
+
+export function Switch({checked, onChange, label}: {checked: boolean; onChange: (checked: boolean) => void; label: string}): ReactNode {
+	return (
+		<button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} className={cx('relative h-8 w-13 shrink-0 rounded-full transition-colors', checked ? 'bg-ember' : 'bg-surface-2 ring-2 ring-line ring-inset')}>
+			<span className={cx('absolute top-1 size-6 rounded-full shadow-lift transition-[left]', checked ? 'left-6 bg-on-ember' : 'left-1 bg-muted')} />
+		</button>
 	)
 }

@@ -1,19 +1,24 @@
 // State of the Android interface. It talks to core only through the AppApi
-// (the same contract the desktop renderer uses) plus the few phone-only
-// capabilities in AndroidUiShell.
+// (the same contract the desktop renderer uses) plus the phone's own
+// integrations in AndroidUiShell (share targets, clipboard, share sheet…).
 
 import {createStore, type StoreApi} from 'zustand/vanilla'
 import type {AppApi, SettingsPatch} from '@shared/api.js'
+import {WEBSITE_URL} from '@shared/constants.js'
 import {QUEUE_STATUS} from '@shared/schemas.js'
 import type {AppSettings, CommonSettings, PlaylistProbeResult, ProbeError, QueueItem, VideoProbeResult} from '@shared/types.js'
+import type {AndroidNativePort, Launch} from '../nativePort.js'
+import type {AndroidUpdate} from '../updateCheck.js'
 import {activeQuality, linkFromSharedText, planQueueItems, profileRefFor, type QualityChoiceId} from './downloadPlan.js'
-import {QUALITY_KEYS, t} from './i18n.js'
+import {QUALITY_KEYS, errorMessageKey, t} from './i18n.js'
+
+export type ShellNative = Pick<AndroidNativePort, 'takeLaunch' | 'onLaunch' | 'readClipboard' | 'moveToBackground' | 'openFile' | 'shareFile' | 'shareText' | 'requestNotifications' | 'showResult' | 'pickCookiesFile' | 'removeCookiesFile'>
 
 export interface AndroidUiShell {
-	takeSharedText: () => Promise<string | null>
-	onShareArrived: (listener: () => void) => () => void
-	openFile: (relativePath: string) => Promise<void>
-	setDarkSystemBars: (dark: boolean) => void
+	native: ShellNative
+	checkForUpdate: () => Promise<AndroidUpdate | null>
+	// When the last clipboard link was seen, kept across launches so a clip is offered once.
+	clipboardSeenAt: {get: () => number; set: (copiedAt: number) => void}
 }
 
 export type Tab = 'home' | 'downloads' | 'settings'
@@ -37,6 +42,9 @@ export interface ShellState {
 	draftUrl: string
 	home: HomeState
 	toast: Toast | null
+	// A link the user copied in another app, offered on the Download screen.
+	clipboardLink: string | null
+	update: AndroidUpdate | null
 }
 
 export interface ShellActions {
@@ -49,17 +57,36 @@ export interface ShellActions {
 	toggleEntry: (entryId: string) => void
 	selectAllEntries: (selected: boolean) => void
 	setQuality: (quality: QualityChoiceId) => Promise<void>
-	downloadCurrent: () => Promise<void>
+	downloadCurrent: (opts?: {quick?: boolean}) => Promise<number>
 	updateCommon: (patch: Partial<CommonSettings>) => Promise<boolean>
 	openArtifact: (item: QueueItem) => Promise<void>
+	shareArtifact: (item: QueueItem) => Promise<void>
+	shareFailure: (item: QueueItem) => Promise<void>
+	shareApp: () => Promise<void>
+	checkClipboard: () => Promise<void>
+	useClipboardLink: () => Promise<void>
+	dismissClipboardLink: () => void
+	pasteFromClipboard: () => Promise<void>
+	chooseCookies: () => Promise<void>
+	clearCookies: () => Promise<void>
 	dismissToast: () => void
 }
 
 export type ShellStore = StoreApi<ShellState & ShellActions>
 
+function mediaArtifact(item: QueueItem): QueueItem['artifacts'][number] | undefined {
+	return item.artifacts.find(artifact => artifact.kind === 'media') ?? item.artifacts[0]
+}
+
+function playlistRows(probe: PlaylistProbeResult): string[] {
+	return probe.entries.filter(entry => entry.isContainer !== true).map(entry => entry.id)
+}
+
 export function createShellStore(api: AppApi, shell: AndroidUiShell, newId: () => string = () => crypto.randomUUID()): ShellStore {
+	const {native} = shell
 	let toastSeq = 0
 	let probeSeq = 0
+	let askedNotifications = false
 
 	return createStore<ShellState & ShellActions>()((set, get) => {
 		const showToast = (message: string, action?: Toast['action']): void => {
@@ -79,11 +106,33 @@ export function createShellStore(api: AppApi, shell: AndroidUiShell, newId: () =
 			return result.ok
 		}
 
-		const takeShare = async (): Promise<void> => {
-			const text = await shell.takeSharedText()
-			if (text === null) return
-			set({tab: 'home'})
-			await get().lookUp(text)
+		// A share through "Download now" queues with the active quality and goes
+		// back to the app it came from, like the desktop hotkey. A playlist still
+		// opens for review: picking rows is not something to guess.
+		const handleLaunch = async (launch: Launch): Promise<void> => {
+			if (launch.kind === 'downloads') {
+				set({tab: 'downloads'})
+				return
+			}
+			set({tab: 'home', clipboardLink: null})
+			if (launch.kind === 'paste') {
+				await get().pasteFromClipboard()
+				return
+			}
+			await get().lookUp(launch.text)
+			const home = get().home
+			if (!launch.quick || home.kind !== 'video') return
+			const title = home.probe.title
+			if ((await get().downloadCurrent({quick: true})) > 0) {
+				void native.showResult({id: 1, title: t('notice.quickQueued', {title}), text: t('home.quickTip')})
+				await native.moveToBackground()
+			}
+		}
+
+		const takeLaunch = async (): Promise<boolean> => {
+			const launch = await native.takeLaunch()
+			if (launch) await handleLaunch(launch)
+			return launch !== null
 		}
 
 		return {
@@ -95,6 +144,8 @@ export function createShellStore(api: AppApi, shell: AndroidUiShell, newId: () =
 			draftUrl: '',
 			home: {kind: 'idle'},
 			toast: null,
+			clipboardLink: null,
+			update: null,
 
 			start: async () => {
 				set({boot: {kind: 'starting'}})
@@ -112,8 +163,9 @@ export function createShellStore(api: AppApi, shell: AndroidUiShell, newId: () =
 				const snapshot = await api.queue.cmd.getSnapshot()
 				if (snapshot.ok) set({items: snapshot.data.items, schedulerPaused: snapshot.data.schedulerPaused})
 				set({boot: {kind: 'ready', ytDlpVersion: warm.data.dependencies['yt-dlp'].versionOutput ?? null}})
-				shell.onShareArrived(() => void takeShare())
-				await takeShare()
+				native.onLaunch(() => void takeLaunch())
+				void shell.checkForUpdate().then(update => set({update}))
+				if (!(await takeLaunch())) await get().checkClipboard()
 			},
 
 			setTab: tab => set({tab}),
@@ -142,7 +194,7 @@ export function createShellStore(api: AppApi, shell: AndroidUiShell, newId: () =
 				}
 				probeSeq += 1
 				const seq = probeSeq
-				set({draftUrl: url, home: {kind: 'probing', url}})
+				set({draftUrl: url, clipboardLink: get().clipboardLink === url ? null : get().clipboardLink, home: {kind: 'probing', url}})
 				const result = await api.downloads.probe({url, playlistMode: 'auto'})
 				if (seq !== probeSeq) return
 				if (!result.ok) {
@@ -150,7 +202,7 @@ export function createShellStore(api: AppApi, shell: AndroidUiShell, newId: () =
 					return
 				}
 				const probe = result.data
-				set({home: probe.kind === 'video' ? {kind: 'video', url, probe} : {kind: 'playlist', url, probe, selected: new Set(probe.entries.filter(entry => entry.isContainer !== true).map(entry => entry.id))}})
+				set({home: probe.kind === 'video' ? {kind: 'video', url, probe} : {kind: 'playlist', url, probe, selected: new Set(playlistRows(probe))}})
 			},
 
 			resetHome: () => {
@@ -171,38 +223,91 @@ export function createShellStore(api: AppApi, shell: AndroidUiShell, newId: () =
 			selectAllEntries: selected => {
 				const home = get().home
 				if (home.kind !== 'playlist') return
-				set({home: {...home, selected: new Set(selected ? home.probe.entries.filter(entry => entry.isContainer !== true).map(entry => entry.id) : [])}})
+				set({home: {...home, selected: new Set(selected ? playlistRows(home.probe) : [])}})
 			},
 
 			setQuality: async quality => {
-				const settings = get().settings
-				if (!settings) return
+				if (!get().settings) return
 				await applySettings({profiles: {active: profileRefFor(quality)}})
 			},
 
-			downloadCurrent: async () => {
+			downloadCurrent: async ({quick = false} = {}) => {
 				const {home, settings} = get()
-				if (!settings || (home.kind !== 'video' && home.kind !== 'playlist')) return
+				if (!settings || (home.kind !== 'video' && home.kind !== 'playlist')) return 0
 				const quality = activeQuality(settings)
 				const entries = home.kind === 'playlist' ? home.probe.entries.filter(entry => home.selected.has(entry.id)) : undefined
 				const items = planQueueItems({probe: home.probe, quality, settings, entries, formatLabel: t(QUALITY_KEYS[quality].label), now: new Date().toISOString(), newId})
-				if (items.length === 0) return
-				const result = await api.queue.cmd.add(items)
-				if (!result.ok) {
-					showToast(t('home.alreadyQueued'), {label: t('home.view'), tab: 'downloads'})
-					return
+				if (items.length === 0) return 0
+				// Android 13+ asks once, at the first download: that is when the progress notice appears.
+				if (!askedNotifications) {
+					askedNotifications = true
+					await native.requestNotifications().catch(() => false)
 				}
-				const added = result.data.ids.length
-				showToast(added === 0 ? t('home.alreadyQueued') : added === 1 ? t('home.queued') : t('home.queuedMany', {count: added}), {label: t('home.view'), tab: 'downloads'})
+				const result = await api.queue.cmd.add(items)
+				const added = result.ok ? result.data.ids.length : 0
+				if (!quick) showToast(added === 0 ? t('home.alreadyQueued') : added === 1 ? t('home.queued') : t('home.queuedMany', {count: added}), {label: t('home.view'), tab: 'downloads'})
 				get().resetHome()
+				return added
 			},
 
 			updateCommon: patch => applySettings({common: patch}),
 
 			openArtifact: async item => {
-				const media = item.artifacts.find(artifact => artifact.kind === 'media') ?? item.artifacts[0]
-				if (media) await shell.openFile(media.path).catch(() => void api.shell.openFolder())
+				const media = mediaArtifact(item)
+				if (media) await native.openFile(media.path).catch(() => void api.shell.openFolder())
 				else await api.shell.openFolder()
+			},
+
+			shareArtifact: async item => {
+				const media = mediaArtifact(item)
+				if (media) await native.shareFile(media.path).catch(() => showToast(t('error.fileMissing')))
+			},
+
+			// The phone's diagnostics: the failure as text, for a chat or an issue report.
+			shareFailure: async item => {
+				const reason = item.error ? `${t(errorMessageKey(item.error.kind))}\n\n${item.error.raw}` : ''
+				await native.shareText(`${item.title}\n${item.url}\n\n${reason}\n\nArroxy ${window.appVersion} (Android)`.trim())
+			},
+
+			shareApp: async () => {
+				await native.shareText(t('settings.shareMessage', {url: WEBSITE_URL}))
+			},
+
+			// The desktop clipboard watch, on Android's terms: only while in front,
+			// and only a clip copied since the last look (reading it shows a system toast).
+			checkClipboard: async () => {
+				const {settings, home, items} = get()
+				if (settings?.common.clipboardWatchEnabled === false || home.kind !== 'idle') return
+				const read = await native.readClipboard(shell.clipboardSeenAt.get()).catch(() => null)
+				if (!read || read.text === null) return
+				shell.clipboardSeenAt.set(read.copiedAt)
+				const link = linkFromSharedText(read.text)
+				if (link && !items.some(item => item.url === link)) set({clipboardLink: link})
+			},
+
+			useClipboardLink: async () => {
+				const link = get().clipboardLink
+				set({clipboardLink: null})
+				if (link) await get().lookUp(link)
+			},
+
+			dismissClipboardLink: () => set({clipboardLink: null}),
+
+			pasteFromClipboard: async () => {
+				const read = await native.readClipboard(-1).catch(() => null)
+				const link = read?.text ? linkFromSharedText(read.text) : null
+				if (link) await get().lookUp(link)
+				else showToast(t('home.nothingCopied'))
+			},
+
+			chooseCookies: async () => {
+				const path = await native.pickCookiesFile().catch(() => null)
+				if (path) await applySettings({common: {cookiesMode: 'file', cookiesPath: path}})
+			},
+
+			clearCookies: async () => {
+				await native.removeCookiesFile()
+				await applySettings({common: {cookiesMode: 'off', cookiesPath: undefined}})
 			},
 
 			dismissToast: () => set({toast: null})

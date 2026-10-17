@@ -1,48 +1,40 @@
 import {describe, expect, it, vi} from 'vite-plus/test'
-import type {AndroidNativePort, YtDlpRun} from '../../src/android/nativePort.js'
+import type {AndroidNativePort, Launch, YtDlpRun} from '../../src/android/nativePort.js'
 import {createAndroidAppApi} from '../../src/android/createAndroidAppApi.js'
 import type {KeyValueStore} from '../../src/android/storage.js'
-import {createShellStore} from '../../src/android/ui/store.js'
+import {createShellStore, type ShellStore} from '../../src/android/ui/store.js'
+import {quietNative} from '../helpers/androidNative.js'
 
 const VIDEO_JSON = JSON.stringify({id: 'abc', title: 'Shared video', extractor: 'youtube', extractor_key: 'Youtube', webpage_url: 'https://www.youtube.com/watch?v=abc', formats: [{format_id: '18', ext: 'mp4', vcodec: 'avc1', acodec: 'mp4a', height: 360}]})
-
-// A native side that answers probes and holds downloads open.
-function fakeNative(sharedText: string | null): AndroidNativePort {
-	let share = sharedText
-	return {
-		prepare: () => Promise.resolve({workDir: '/w', publicDir: 'Download/Arroxy', ytDlpVersion: '2026.10.01'}),
-		updateYtDlp: () => Promise.resolve({updated: false, ytDlpVersion: '2026.10.01'}),
-		runYtDlp: (_runId, args) => (args.includes('--dump-single-json') ? Promise.resolve<YtDlpRun>({exitCode: 0, stdout: VIDEO_JSON, stderr: '', cancelled: false}) : new Promise<YtDlpRun>(() => undefined)),
-		cancelRun: () => Promise.resolve(),
-		publish: () => Promise.resolve([]),
-		removeDir: () => Promise.resolve(),
-		openDownloads: () => Promise.resolve(),
-		openFile: () => Promise.resolve(),
-		openExternal: () => Promise.resolve(),
-		takeSharedText: () => {
-			const text = share
-			share = null
-			return Promise.resolve(text)
-		},
-		onShareArrived: () => () => undefined
-	}
-}
 
 function memoryStore(): KeyValueStore {
 	const entries = new Map<string, string>()
 	return {get: key => entries.get(key) ?? null, set: (key, value) => void entries.set(key, value)}
 }
 
-function makeStore(sharedText: string | null): ReturnType<typeof createShellStore> {
-	const native = fakeNative(sharedText)
-	const api = createAndroidAppApi({native, store: memoryStore(), publicDir: 'Download/Arroxy'})
-	let n = 0
-	return createShellStore(api, {takeSharedText: () => native.takeSharedText(), onShareArrived: () => () => undefined, openFile: () => Promise.resolve(), setDarkSystemBars: () => undefined}, () => `id-${++n}`)
+// A native side that answers probes, holds downloads open, and hands out one launch.
+function phone(launch: Launch | null, overrides: Partial<AndroidNativePort> = {}): AndroidNativePort {
+	let pending = launch
+	return quietNative({
+		runYtDlp: (_runId, args) => (args.includes('--dump-single-json') ? Promise.resolve<YtDlpRun>({exitCode: 0, stdout: VIDEO_JSON, stderr: '', cancelled: false}) : new Promise<YtDlpRun>(() => undefined)),
+		takeLaunch: () => {
+			const next = pending
+			pending = null
+			return Promise.resolve(next)
+		},
+		...overrides
+	})
 }
 
-describe('Android UI state', () => {
-	it('opens a link shared from another app straight into its result', async () => {
-		const store = makeStore('Look: https://youtu.be/abc?si=TRACKING')
+function makeStore(native: AndroidNativePort, clipboardSeenAt = {value: -1}): ShellStore {
+	const api = createAndroidAppApi({native, store: memoryStore(), publicDir: 'Download/Arroxy'})
+	let n = 0
+	return createShellStore(api, {native, checkForUpdate: () => Promise.resolve(null), clipboardSeenAt: {get: () => clipboardSeenAt.value, set: value => void (clipboardSeenAt.value = value)}}, () => `id-${++n}`)
+}
+
+describe('Android UI: ways into the app', () => {
+	it('opens a shared link straight into its result', async () => {
+		const store = makeStore(phone({kind: 'share', text: 'Look: https://youtu.be/abc?si=TRACKING', quick: false}))
 		await store.getState().start()
 		const state = store.getState()
 		expect(state.boot.kind).toBe('ready')
@@ -50,8 +42,58 @@ describe('Android UI state', () => {
 		expect(state.draftUrl).toBe('https://youtu.be/abc')
 	})
 
-	it('queues the result with the chosen quality and goes back to an empty home', async () => {
-		const store = makeStore('https://youtu.be/abc')
+	it('"Download now" queues with the active quality, confirms in a notification and goes back', async () => {
+		const showResult = vi.fn(() => Promise.resolve())
+		const moveToBackground = vi.fn(() => Promise.resolve())
+		const store = makeStore(phone({kind: 'share', text: 'https://youtu.be/abc', quick: true}, {showResult, moveToBackground}))
+		await store.getState().start()
+		await vi.waitFor(() => expect(store.getState().items).toHaveLength(1))
+		expect(showResult).toHaveBeenCalledWith(expect.objectContaining({title: expect.stringContaining('Shared video')}))
+		expect(moveToBackground).toHaveBeenCalled()
+		expect(store.getState().home.kind).toBe('idle')
+	})
+
+	it('the "Paste link" shortcut looks up what is on the clipboard', async () => {
+		const store = makeStore(phone({kind: 'paste'}, {readClipboard: () => Promise.resolve({text: 'https://youtu.be/abc', copiedAt: 5})}))
+		await store.getState().start()
+		expect(store.getState().home.kind).toBe('video')
+	})
+
+	it('the "Downloads" shortcut opens the Downloads tab', async () => {
+		const store = makeStore(phone({kind: 'downloads'}))
+		await store.getState().start()
+		expect(store.getState().tab).toBe('downloads')
+	})
+})
+
+describe('Android UI: clipboard watch', () => {
+	it('offers a newly copied link once, and only reads clips newer than the last one seen', async () => {
+		const readClipboard = vi.fn((since: number) => Promise.resolve(since >= 7 ? {text: null, copiedAt: 7} : {text: 'https://youtu.be/abc', copiedAt: 7}))
+		const store = makeStore(phone(null, {readClipboard}))
+		await store.getState().start()
+		expect(store.getState().clipboardLink).toBe('https://youtu.be/abc')
+		store.getState().dismissClipboardLink()
+		await store.getState().checkClipboard()
+		expect(readClipboard).toHaveBeenLastCalledWith(7)
+		expect(store.getState().clipboardLink).toBeNull()
+	})
+
+	it('stays off when the setting is off', async () => {
+		const readClipboard = vi.fn(() => Promise.resolve({text: 'https://youtu.be/abc', copiedAt: 7}))
+		const store = makeStore(phone(null, {readClipboard}))
+		await store.getState().start()
+		store.getState().dismissClipboardLink()
+		readClipboard.mockClear()
+		await store.getState().updateCommon({clipboardWatchEnabled: false})
+		await store.getState().checkClipboard()
+		expect(readClipboard).not.toHaveBeenCalled()
+	})
+})
+
+describe('Android UI: downloads and settings', () => {
+	it('queues the result with the chosen quality, asks for notifications once, and empties home', async () => {
+		const requestNotifications = vi.fn(() => Promise.resolve(true))
+		const store = makeStore(phone({kind: 'share', text: 'https://youtu.be/abc', quick: false}, {requestNotifications}))
 		await store.getState().start()
 		await store.getState().setQuality('audio')
 		await store.getState().downloadCurrent()
@@ -59,10 +101,24 @@ describe('Android UI state', () => {
 		expect(store.getState().items[0]?.formatLabel).toBe('Audio only')
 		expect(store.getState().home.kind).toBe('idle')
 		expect(store.getState().toast?.action?.tab).toBe('downloads')
+		await store.getState().lookUp('https://youtu.be/other')
+		await store.getState().downloadCurrent()
+		expect(requestNotifications).toHaveBeenCalledTimes(1)
+	})
+
+	it('turns a picked cookies file into desktop-style file mode, and back off', async () => {
+		const removeCookiesFile = vi.fn(() => Promise.resolve())
+		const store = makeStore(phone(null, {pickCookiesFile: () => Promise.resolve('/data/work/cookies.txt'), removeCookiesFile}))
+		await store.getState().start()
+		await store.getState().chooseCookies()
+		expect(store.getState().settings?.common).toMatchObject({cookiesMode: 'file', cookiesPath: '/data/work/cookies.txt'})
+		await store.getState().clearCookies()
+		expect(store.getState().settings?.common.cookiesMode).toBe('off')
+		expect(removeCookiesFile).toHaveBeenCalled()
 	})
 
 	it('walks back out of a result, then out of a secondary tab', async () => {
-		const store = makeStore('https://youtu.be/abc')
+		const store = makeStore(phone({kind: 'share', text: 'https://youtu.be/abc', quick: false}))
 		await store.getState().start()
 		store.getState().setTab('settings')
 		expect(store.getState().back()).toBe(true)

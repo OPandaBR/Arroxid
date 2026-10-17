@@ -1,11 +1,11 @@
-import {ChevronRight, ExternalLink, FolderOpen, Minus, Plus} from 'lucide-react'
+import {ChevronRight, ExternalLink, FolderOpen, Minus, Plus, Share2, Sparkles} from 'lucide-react'
 import {useContext, useState, type ReactNode} from 'react'
 import type {UiTheme} from '@shared/schemas.js'
 import {MAX_CONCURRENT_DOWNLOADS, NORMAL_LANE_CAP} from '@shared/constants.js'
 import {AppApiContext} from '../appApiContext.js'
 import {activeQuality, QUALITY_CHOICES} from '../downloadPlan.js'
 import {QUALITY_KEYS, t} from '../i18n.js'
-import {Card, IconButton, ScreenHeader, Segmented} from '../primitives.js'
+import {Button, Card, IconButton, ScreenHeader, Segmented, Switch} from '../primitives.js'
 import {cx} from '../cx.js'
 import {useShell} from '../shellContext.js'
 
@@ -65,7 +65,12 @@ export function SettingsScreen(): ReactNode {
 	const boot = useShell(state => state.boot)
 	const updateCommon = useShell(state => state.updateCommon)
 	const setQuality = useShell(state => state.setQuality)
+	const chooseCookies = useShell(state => state.chooseCookies)
+	const clearCookies = useShell(state => state.clearCookies)
+	const shareApp = useShell(state => state.shareApp)
+	const update = useShell(state => state.update)
 	if (!settings) return null
+	const cookiesLoaded = settings.common.cookiesMode === 'file' && Boolean(settings.common.cookiesPath)
 	const common = settings.common
 	const parallel = common.concurrentDownloads ?? NORMAL_LANE_CAP
 	const quality = activeQuality(settings)
@@ -111,8 +116,25 @@ export function SettingsScreen(): ReactNode {
 							</IconButton>
 						</div>
 					</Row>
+					<Row label={t('settings.clipboard')} hint={t('settings.clipboard.hint')}>
+						<Switch label={t('settings.clipboard')} checked={common.clipboardWatchEnabled !== false} onChange={clipboardWatchEnabled => void updateCommon({clipboardWatchEnabled})} />
+					</Row>
 					<TextSetting label={t('settings.rate')} hint={t('settings.rate.hint')} value={common.limitRate ?? ''} onSave={limitRate => updateCommon({limitRate: limitRate || undefined})} />
 					<TextSetting label={t('settings.proxy')} hint={t('settings.proxy.hint')} value={common.proxyUrl ?? ''} onSave={proxyUrl => updateCommon({proxyUrl: proxyUrl || undefined})} />
+				</Group>
+
+				<Group title={t('settings.access')}>
+					<Row label={t('settings.cookies')} hint={t('settings.cookies.hint')} />
+					<Row label={cookiesLoaded ? t('settings.cookies.loaded') : t('settings.cookies.none')}>
+						{cookiesLoaded ? (
+							<Button tone="text" className="min-h-10 px-4" onClick={() => void clearCookies()}>
+								{t('settings.cookies.remove')}
+							</Button>
+						) : null}
+						<Button tone="tonal" className="min-h-10 px-4" onClick={() => void chooseCookies()} data-testid="cookies-choose">
+							{t('settings.cookies.choose')}
+						</Button>
+					</Row>
 				</Group>
 
 				<Group title={t('settings.storage')}>
@@ -124,11 +146,23 @@ export function SettingsScreen(): ReactNode {
 				</Group>
 
 				<Group title={t('settings.about')}>
+					{update ? (
+						<button type="button" onClick={() => void api?.shell.openExternal(update.url)} className="flex w-full items-center text-left active:bg-surface-2">
+							<Row label={t('settings.update', {version: update.version})}>
+								<Sparkles size={18} className="text-moss" />
+							</Row>
+						</button>
+					) : null}
 					<Row label={t('settings.version')} hint={window.appVersion} />
 					<Row label={t('settings.engine')} hint={boot.kind === 'ready' ? (boot.ytDlpVersion ?? '—') : '—'} />
 					<button type="button" onClick={() => void api?.shell.openExternal(SOURCE_URL)} className="flex w-full items-center text-left active:bg-surface-2">
 						<Row label={t('settings.source')} hint={SOURCE_URL.replace('https://', '')}>
 							<ExternalLink size={18} className="text-muted" />
+						</Row>
+					</button>
+					<button type="button" onClick={() => void shareApp()} className="flex w-full items-center text-left active:bg-surface-2">
+						<Row label={t('settings.share')}>
+							<Share2 size={18} className="text-muted" />
 						</Row>
 					</button>
 				</Group>

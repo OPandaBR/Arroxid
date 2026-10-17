@@ -1,30 +1,38 @@
 package com.arroxy.app;
 
+import android.Manifest;
+import android.app.Activity;
 import android.app.DownloadManager;
-import android.content.ContentResolver;
-import android.content.ContentValues;
+import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipDescription;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
+import android.content.IntentFilter;
 import android.net.Uri;
-import android.provider.MediaStore;
-import android.webkit.MimeTypeMap;
+import android.os.Build;
+import androidx.activity.result.ActivityResult;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import com.yausername.ffmpeg.FFmpeg;
 import com.yausername.youtubedl_android.YoutubeDL;
 import com.yausername.youtubedl_android.YoutubeDLRequest;
 import com.yausername.youtubedl_android.YoutubeDLResponse;
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -34,78 +42,61 @@ import kotlin.Unit;
 import org.json.JSONException;
 
 /**
- * The native half of the Android host (see src/android/host.ts for the
+ * The native half of the Android shell (see src/android/nativePort.ts for the
  * contract). Runs yt-dlp through youtubedl-android's bundled Python and ffmpeg,
- * and moves finished files into the public Download/Arroxy folder. Argument
- * planning stays in the WebView, where the desktop planner lives.
+ * publishes finished files to Download/Arroxy, and carries the phone's own
+ * integrations: share targets and shortcuts, clipboard, notifications, the
+ * system share sheet and the file picker. Argument planning stays in the
+ * WebView, where the desktop planner lives.
  */
-@CapacitorPlugin(name = "ArroxyNative")
+@CapacitorPlugin(name = "ArroxyNative", permissions = {@Permission(alias = "notifications", strings = {Manifest.permission.POST_NOTIFICATIONS})})
 public class ArroxyNativePlugin extends Plugin {
 
-    static final String PUBLIC_SUBDIR = "Arroxy";
-    private static final String PUBLIC_DIR_LABEL = "Download/" + PUBLIC_SUBDIR;
+    private static final long MAX_COOKIES_BYTES = 5L * 1024 * 1024;
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
-    // Text shared into the app ("Share → Arroxy"), held until the UI takes it.
-    private String pendingShare = null;
+    // How the app was last entered (share, shortcut…), held until the UI takes it.
+    private JSObject pendingLaunch = null;
+
+    private final BroadcastReceiver notificationActions = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getStringExtra(DownloadNotifications.EXTRA_ACTION);
+            if (action == null) return;
+            JSObject event = new JSObject();
+            event.put("action", action);
+            notifyListeners("notificationAction", event);
+        }
+    };
 
     @Override
     public void load() {
-        rememberShare(getActivity().getIntent());
+        rememberLaunch(getActivity().getIntent());
+        ContextCompat.registerReceiver(getContext(), notificationActions, new IntentFilter(DownloadNotifications.ACTION_NOTIFICATION), ContextCompat.RECEIVER_NOT_EXPORTED);
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        getContext().unregisterReceiver(notificationActions);
+        super.handleOnDestroy();
     }
 
     @Override
     protected void handleOnNewIntent(Intent intent) {
         super.handleOnNewIntent(intent);
-        if (rememberShare(intent)) notifyListeners("sharedText", new JSObject());
+        if (rememberLaunch(intent)) notifyListeners("launch", new JSObject());
     }
 
-    private boolean rememberShare(Intent intent) {
-        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return false;
-        String text = intent.getStringExtra(Intent.EXTRA_TEXT);
-        if (text == null || text.isEmpty()) return false;
+    private boolean rememberLaunch(Intent intent) {
+        JSObject launch = LaunchIntents.read(intent);
+        if (launch == null) return false;
         synchronized (this) {
-            pendingShare = text;
+            pendingLaunch = launch;
         }
+        // Consumed: recreating the activity must not replay it.
+        getActivity().setIntent(new Intent(Intent.ACTION_MAIN));
         return true;
-    }
-
-    @PluginMethod
-    public void takeSharedText(PluginCall call) {
-        JSObject result = new JSObject();
-        synchronized (this) {
-            result.put("text", pendingShare == null ? JSObject.NULL : pendingShare);
-            pendingShare = null;
-        }
-        call.resolve(result);
-    }
-
-    @PluginMethod
-    public void openFile(PluginCall call) {
-        String relativePath = call.getString("relativePath", "");
-        int slash = relativePath.lastIndexOf('/');
-        if (slash <= 0) {
-            call.reject("not a file path: " + relativePath);
-            return;
-        }
-        String dir = relativePath.substring(0, slash + 1);
-        String name = relativePath.substring(slash + 1);
-        ContentResolver resolver = getContext().getContentResolver();
-        String[] projection = {MediaStore.Downloads._ID, MediaStore.Downloads.MIME_TYPE};
-        String selection = MediaStore.Downloads.RELATIVE_PATH + "=? AND " + MediaStore.Downloads.DISPLAY_NAME + "=?";
-        try (Cursor cursor = resolver.query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, new String[] {dir, name}, null)) {
-            if (cursor == null || !cursor.moveToFirst()) {
-                call.reject("file not found: " + relativePath);
-                return;
-            }
-            Uri uri = Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, String.valueOf(cursor.getLong(0)));
-            Intent view = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, cursor.getString(1)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(Intent.createChooser(view, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            call.resolve();
-        } catch (Exception e) {
-            call.reject("cannot open " + relativePath + ": " + e.getMessage(), e);
-        }
     }
 
     private File workDir() {
@@ -122,6 +113,8 @@ public class ArroxyNativePlugin extends Plugin {
         return target;
     }
 
+    // ---- yt-dlp -------------------------------------------------------------
+
     @PluginMethod
     public void prepare(PluginCall call) {
         executor.execute(() -> {
@@ -131,7 +124,7 @@ public class ArroxyNativePlugin extends Plugin {
                 FFmpeg.getInstance().init(context);
                 JSObject result = new JSObject();
                 result.put("workDir", workDir().getAbsolutePath());
-                result.put("publicDir", PUBLIC_DIR_LABEL);
+                result.put("publicDir", SharedStorage.PUBLIC_DIR_LABEL);
                 result.put("ytDlpVersion", YoutubeDL.getInstance().version(context));
                 call.resolve(result);
             } catch (Exception e) {
@@ -216,22 +209,19 @@ public class ArroxyNativePlugin extends Plugin {
         call.resolve();
     }
 
+    // ---- Files ----------------------------------------------------------------
+
     @PluginMethod
     public void publish(PluginCall call) {
         String dir = call.getString("dir");
         executor.execute(() -> {
             try {
-                File root = insideWorkDir(dir == null ? "" : dir);
                 JSArray files = new JSArray();
-                for (File file : listFiles(root)) {
-                    String relative = root.toURI().relativize(file.getParentFile().toURI()).getPath();
-                    String relativeDir = PUBLIC_SUBDIR + (relative.isEmpty() ? "" : "/" + relative.replaceAll("/$", ""));
-                    // MediaStore renames on a clash ("clip (1).mp4"), so report the name it kept.
-                    String savedName = copyToDownloads(file, relativeDir);
+                for (SharedStorage.Published file : SharedStorage.publish(getContext(), insideWorkDir(dir == null ? "" : dir))) {
                     JSObject entry = new JSObject();
-                    entry.put("name", savedName);
-                    entry.put("relativePath", "Download/" + relativeDir + "/" + savedName);
-                    entry.put("sizeBytes", file.length());
+                    entry.put("name", file.name());
+                    entry.put("relativePath", file.relativePath());
+                    entry.put("sizeBytes", file.sizeBytes());
                     files.put(entry);
                 }
                 JSObject result = new JSObject();
@@ -258,15 +248,49 @@ public class ArroxyNativePlugin extends Plugin {
 
     @PluginMethod
     public void openDownloads(PluginCall call) {
-        Intent intent = new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        getContext().startActivity(intent);
+        getContext().startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void openFile(PluginCall call) {
+        String relativePath = call.getString("relativePath", "");
+        SharedStorage.Found file = SharedStorage.find(getContext(), relativePath);
+        if (file == null) {
+            call.reject("file not found: " + relativePath);
+            return;
+        }
+        Intent view = new Intent(Intent.ACTION_VIEW).setDataAndType(file.uri(), file.mime()).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        getContext().startActivity(Intent.createChooser(view, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        call.resolve();
+    }
+
+    /** The system share sheet for one saved file (send it to a chat, a drive…). */
+    @PluginMethod
+    public void shareFile(PluginCall call) {
+        String relativePath = call.getString("relativePath", "");
+        SharedStorage.Found file = SharedStorage.find(getContext(), relativePath);
+        if (file == null) {
+            call.reject("file not found: " + relativePath);
+            return;
+        }
+        Intent send = new Intent(Intent.ACTION_SEND).setType(file.mime()).putExtra(Intent.EXTRA_STREAM, file.uri()).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        getContext().startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        call.resolve();
+    }
+
+    /** The system share sheet for text: error details, or a link to Arroxy. */
+    @PluginMethod
+    public void shareText(PluginCall call) {
+        String text = call.getString("text", "");
+        Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text);
+        getContext().startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         call.resolve();
     }
 
     @PluginMethod
     public void openExternal(PluginCall call) {
-        String url = call.getString("url", "");
-        Uri uri = Uri.parse(url);
+        Uri uri = Uri.parse(call.getString("url", ""));
         String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
         if (!scheme.equals("https") && !scheme.equals("http")) {
             call.reject("only http(s) links can be opened");
@@ -276,49 +300,136 @@ public class ArroxyNativePlugin extends Plugin {
         call.resolve();
     }
 
-    // Finished files only: yt-dlp's partial and internal files stay behind.
-    private static boolean isPublishable(File file) {
-        String name = file.getName();
-        return !name.endsWith(".part") && !name.endsWith(".ytdl") && !name.endsWith(".info.json") && !name.startsWith(".");
+    /** Lets the user pick a cookies.txt; a private copy is what yt-dlp reads (and may update). */
+    @PluginMethod
+    public void pickCookiesFile(PluginCall call) {
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
+        startActivityForResult(call, pick, "cookiesPicked");
     }
 
-    private static List<File> listFiles(File dir) {
-        List<File> out = new ArrayList<>();
-        File[] children = dir.listFiles();
-        if (children == null) return out;
-        for (File child : children) {
-            if (child.isDirectory()) out.addAll(listFiles(child));
-            else if (isPublishable(child)) out.add(child);
+    @ActivityCallback
+    private void cookiesPicked(PluginCall call, ActivityResult result) {
+        JSObject reply = new JSObject();
+        Uri uri = result.getData() == null ? null : result.getData().getData();
+        if (result.getResultCode() != Activity.RESULT_OK || uri == null) {
+            reply.put("path", JSObject.NULL);
+            call.resolve(reply);
+            return;
         }
-        return out;
+        executor.execute(() -> {
+            File target = new File(workDir(), "cookies.txt");
+            try (InputStream in = getContext().getContentResolver().openInputStream(uri); OutputStream out = new FileOutputStream(target)) {
+                if (in == null) throw new IOException("cannot read the chosen file");
+                byte[] buffer = new byte[1 << 14];
+                long total = 0;
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    total += read;
+                    if (total > MAX_COOKIES_BYTES) throw new IOException("the file is too large to be a cookies file");
+                    out.write(buffer, 0, read);
+                }
+                reply.put("path", target.getAbsolutePath());
+                call.resolve(reply);
+            } catch (IOException e) {
+                //noinspection ResultOfMethodCallIgnored
+                target.delete();
+                call.reject(e.getMessage(), e);
+            }
+        });
     }
 
-    private String copyToDownloads(File file, String relativeDir) throws IOException {
-        ContentResolver resolver = getContext().getContentResolver();
-        String extension = MimeTypeMap.getFileExtensionFromUrl(Uri.fromFile(file).toString());
-        String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension.toLowerCase(Locale.ROOT));
-        ContentValues values = new ContentValues();
-        values.put(MediaStore.Downloads.DISPLAY_NAME, file.getName());
-        values.put(MediaStore.Downloads.MIME_TYPE, mime == null ? "application/octet-stream" : mime);
-        values.put(MediaStore.Downloads.RELATIVE_PATH, "Download/" + relativeDir);
-        values.put(MediaStore.Downloads.IS_PENDING, 1);
-        Uri target = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-        if (target == null) throw new IOException("MediaStore refused " + file.getName());
-        try (InputStream in = new FileInputStream(file); OutputStream out = resolver.openOutputStream(target)) {
-            if (out == null) throw new IOException("cannot write " + file.getName());
-            byte[] buffer = new byte[1 << 16];
-            int read;
-            while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
-        } catch (IOException e) {
-            resolver.delete(target, null, null);
-            throw e;
+    @PluginMethod
+    public void removeCookiesFile(PluginCall call) {
+        //noinspection ResultOfMethodCallIgnored
+        new File(workDir(), "cookies.txt").delete();
+        call.resolve();
+    }
+
+    // ---- Entry points, clipboard, task ---------------------------------------
+
+    @PluginMethod
+    public void takeLaunch(PluginCall call) {
+        JSObject result = new JSObject();
+        synchronized (this) {
+            result.put("launch", pendingLaunch == null ? JSObject.NULL : pendingLaunch);
+            pendingLaunch = null;
         }
-        values.clear();
-        values.put(MediaStore.Downloads.IS_PENDING, 0);
-        resolver.update(target, values, null, null);
-        try (Cursor cursor = resolver.query(target, new String[] {MediaStore.Downloads.DISPLAY_NAME}, null, null, null)) {
-            return cursor != null && cursor.moveToFirst() ? cursor.getString(0) : file.getName();
+        call.resolve(result);
+    }
+
+    // Android only hands the clipboard to the focused app, which is exactly
+    // when the UI asks (the desktop watcher's rule: only while in front).
+    // With `since`, the text is read only for a clip copied after it: reading
+    // shows Android 12+'s "pasted from your clipboard" toast, the timestamp does not.
+    @PluginMethod
+    public void readClipboard(PluginCall call) {
+        long since = call.getLong("since", -1L);
+        getActivity().runOnUiThread(() -> {
+            JSObject result = new JSObject();
+            ClipboardManager clipboard = getContext().getSystemService(ClipboardManager.class);
+            ClipDescription description = clipboard == null ? null : clipboard.getPrimaryClipDescription();
+            long copiedAt = description == null ? -1L : description.getTimestamp();
+            result.put("copiedAt", copiedAt);
+            boolean fresh = since < 0 || copiedAt > since;
+            ClipData clip = description == null || !fresh ? null : clipboard.getPrimaryClip();
+            CharSequence text = clip == null || clip.getItemCount() == 0 ? null : clip.getItemAt(0).coerceToText(getContext());
+            result.put("text", text == null ? JSObject.NULL : text.toString());
+            call.resolve(result);
+        });
+    }
+
+    /** Back to the app the user came from, after a quick download was queued. */
+    @PluginMethod
+    public void moveToBackground(PluginCall call) {
+        getActivity().runOnUiThread(() -> getActivity().moveTaskToBack(true));
+        call.resolve();
+    }
+
+    // ---- Notifications ----------------------------------------------------------
+
+    @PluginMethod
+    public void requestNotifications(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || getPermissionState("notifications") == PermissionState.GRANTED) {
+            resolveGranted(call, true);
+            return;
         }
+        requestPermissionForAlias("notifications", call, "notificationsAnswered");
+    }
+
+    @PermissionCallback
+    private void notificationsAnswered(PluginCall call) {
+        resolveGranted(call, getPermissionState("notifications") == PermissionState.GRANTED);
+    }
+
+    private static void resolveGranted(PluginCall call, boolean granted) {
+        JSObject result = new JSObject();
+        result.put("granted", granted);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void setProgressNotice(PluginCall call) {
+        JSObject notice = call.getObject("notice");
+        if (notice == null) {
+            KeepAliveService.update(getContext(), null);
+        } else {
+            String actionLabel = notice.getString("actionLabel");
+            KeepAliveService.update(getContext(), new DownloadNotifications.ProgressNotice(notice.getString("title", ""), notice.getString("text", ""), notice.getInteger("percent", -1), Boolean.TRUE.equals(notice.getBool("paused")), actionLabel));
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void showResult(PluginCall call) {
+        int id = call.getInt("id", 0);
+        String title = call.getString("title", "");
+        String text = call.getString("text", "");
+        String relativePath = call.getString("relativePath");
+        executor.execute(() -> {
+            SharedStorage.Found file = relativePath == null ? null : SharedStorage.find(getContext(), relativePath);
+            DownloadNotifications.result(getContext(), id, title, text, file);
+            call.resolve();
+        });
     }
 
     private static void deleteRecursively(File file) {
