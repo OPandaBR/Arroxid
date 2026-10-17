@@ -27,7 +27,7 @@ function phone(launch: Launch | null, overrides: Partial<AndroidNativePort> = {}
 }
 
 function makeStore(native: AndroidNativePort, clipboardSeenAt = {value: -1}): ShellStore {
-	const api = createAndroidAppApi({native, store: memoryStore(), publicDir: 'Download/Arroxy'})
+	const api = createAndroidAppApi({native, store: memoryStore(), publicDir: 'Download/Pingo'})
 	let n = 0
 	return createShellStore(api, {native, checkForUpdate: () => Promise.resolve(null), clipboardSeenAt: {get: () => clipboardSeenAt.value, set: value => void (clipboardSeenAt.value = value)}}, () => `id-${++n}`)
 }

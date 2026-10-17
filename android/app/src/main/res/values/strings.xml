@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Arroxy</string>
-    <string name="title_activity_main">Arroxy</string>
-    <string name="package_name">com.arroxy.app</string>
-    <string name="custom_url_scheme">com.arroxy.app</string>
-    <string name="share_target_label">Arroxy</string>
+    <string name="app_name">Pingo</string>
+    <string name="title_activity_main">Pingo</string>
+    <string name="package_name">com.arroxy.pingo</string>
+    <string name="custom_url_scheme">com.arroxy.pingo</string>
+    <string name="share_target_label">Pingo</string>
     <string name="quick_share_label">Download now</string>
-    <string name="process_text_label">Download with Arroxy</string>
+    <string name="process_text_label">Download with Pingo</string>
     <string name="shortcut_paste_short">Paste link</string>
     <string name="shortcut_paste_long">Paste a copied link</string>
     <string name="shortcut_downloads_short">Downloads</string>

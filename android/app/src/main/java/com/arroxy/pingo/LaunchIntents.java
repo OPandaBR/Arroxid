@@ -1,4 +1,4 @@
-package com.arroxy.app;
+package com.arroxy.pingo;
 
 import android.content.ComponentName;
 import android.content.Intent;
@@ -11,10 +11,10 @@ import com.getcapacitor.JSObject;
  */
 final class LaunchIntents {
 
-    static final String ACTION_PASTE_LINK = "com.arroxy.app.PASTE_LINK";
-    static final String ACTION_OPEN_DOWNLOADS = "com.arroxy.app.OPEN_DOWNLOADS";
+    static final String ACTION_PASTE_LINK = "com.arroxy.pingo.PASTE_LINK";
+    static final String ACTION_OPEN_DOWNLOADS = "com.arroxy.pingo.OPEN_DOWNLOADS";
     // The share target that queues without asking (the phone's take on the desktop hotkey).
-    static final String QUICK_DOWNLOAD_ALIAS = "com.arroxy.app.QuickDownload";
+    static final String QUICK_DOWNLOAD_ALIAS = "com.arroxy.pingo.QuickDownload";
 
     private LaunchIntents() {}
 

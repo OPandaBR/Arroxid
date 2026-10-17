@@ -20,7 +20,7 @@ The defaults below apply to every change in this codebase.
 Arroxy is a Bun workspace (`workspaces: ["packages/*"]`), not a single app:
 
 - `src/` — the Electron app (`main` / `preload` / `renderer` / `shared`).
-- `src/android/` + `android/` — the Android shell: its own phone UI (not the desktop renderer) in a Capacitor WebView over the same `AppApi`, queue and probe in TS, yt-dlp via youtubedl-android. See [`dev-docs/android.md`](dev-docs/android.md).
+- `src/android/` + `android/` — the Android shell, shipped as **Pingo** (`com.arroxy.pingo`): its own name, phone UI (not the desktop renderer) in a Capacitor WebView over the same `AppApi`, queue and probe in TS, yt-dlp via youtubedl-android. See [`dev-docs/android.md`](dev-docs/android.md).
 - `packages/yt-dlp-bridge` — yt-dlp workflow planning, argv generation, process execution, output parsing. Published as `yt-dlp-bridge` on npm; the app consumes it via `workspace:*`.
 - `packages/ytdlp-errors` — structured yt-dlp error taxonomy. Published as `ytdlp-errors` on npm; `yt-dlp-bridge` depends on it.
 

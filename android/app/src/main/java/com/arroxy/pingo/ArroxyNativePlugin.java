@@ -1,4 +1,4 @@
-package com.arroxy.app;
+package com.arroxy.pingo;
 
 import android.Manifest;
 import android.app.Activity;
@@ -44,7 +44,7 @@ import org.json.JSONException;
 /**
  * The native half of the Android shell (see src/android/nativePort.ts for the
  * contract). Runs yt-dlp through youtubedl-android's bundled Python and ffmpeg,
- * publishes finished files to Download/Arroxy, and carries the phone's own
+ * publishes finished files to Download/Pingo, and carries the phone's own
  * integrations: share targets and shortcuts, clipboard, notifications, the
  * system share sheet and the file picker. Argument planning stays in the
  * WebView, where the desktop planner lives.
@@ -279,7 +279,7 @@ public class ArroxyNativePlugin extends Plugin {
         call.resolve();
     }
 
-    /** The system share sheet for text: error details, or a link to Arroxy. */
+    /** The system share sheet for text: error details, or a link to Pingo. */
     @PluginMethod
     public void shareText(PluginCall call) {
         String text = call.getString("text", "");

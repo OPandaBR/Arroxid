@@ -1,4 +1,9 @@
-# Android shell
+# Pingo, the Android shell
+
+**Pingo** is Arroxy's Android app: Arroxy's core under its own name, interface and
+visual identity. Package `com.arroxy.pingo`; it saves to `Download/Pingo`. Code
+and docs keep calling the shell "Android shell" and the native plugin
+`ArroxyNative`; only what a person sees says Pingo.
 
 | Lives in                                                           | What                                                                                      |
 | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
@@ -11,10 +16,10 @@
 | `src/android/nativePort.ts`, `capacitorAdapter.ts`                 | The port to the native side and its Capacitor adapter (replies parsed with zod)           |
 | `src/android/storage.ts`                                           | Settings and queue persistence (localStorage, read back through the shared schemas)       |
 | `src/android/vite.config.ts`, `src/android/shims/`                 | WebView build; `node:path`/`os`/`fs` shims for yt-dlp-bridge's planner                    |
-| `android/app/src/main/java/com/arroxy/app/ArroxyNativePlugin.java` | Native plugin: yt-dlp, files, share sheet, clipboard, notifications, cookies picker       |
-| `android/app/src/main/java/com/arroxy/app/LaunchIntents.java`      | Share targets, "Download now", selected-text menu and launcher shortcuts → one launch     |
-| `android/app/src/main/java/com/arroxy/app/SharedStorage.java`      | Download/Arroxy through MediaStore: publish, find a saved file                            |
-| `android/app/src/main/java/com/arroxy/app/DownloadNotifications.java`, `KeepAliveService.java` | Live progress notification (foreground service) and finished/failed notifications |
+| `android/app/src/main/java/com/arroxy/pingo/ArroxyNativePlugin.java` | Native plugin: yt-dlp, files, share sheet, clipboard, notifications, cookies picker       |
+| `android/app/src/main/java/com/arroxy/pingo/LaunchIntents.java`      | Share targets, "Download now", selected-text menu and launcher shortcuts → one launch     |
+| `android/app/src/main/java/com/arroxy/pingo/SharedStorage.java`      | Download/Pingo through MediaStore: publish, find a saved file                            |
+| `android/app/src/main/java/com/arroxy/pingo/DownloadNotifications.java`, `KeepAliveService.java` | Live progress notification (foreground service) and finished/failed notifications |
 | `src/android/ui/notices.ts`, `src/android/updateCheck.ts`          | What the notifications say, and the release check                                         |
 | `android/app/src/main/res/`                                        | Adaptive + themed launcher icon and Android 12+ splash, all vector                        |
 | `capacitor.config.json`, `.github/workflows/android.yml`           | Capacitor project config; CI that builds the APKs                                         |
@@ -44,7 +49,7 @@ uses, so site fixes arrive without an app release.
 Each queue item downloads into its own app-private directory
 (`<filesDir>/arroxy/jobs/<itemId>`). Pause kills the process and keeps the
 directory, so resume continues the `.part` files. When the run succeeds every
-finished file is copied into `Download/Arroxy/` through MediaStore (a playlist
+finished file is copied into `Download/Pingo/` through MediaStore (a playlist
 gets its own subfolder), and the job directory is deleted.
 
 ## The interface
@@ -55,7 +60,7 @@ link, look it up, pick a quality, download; playlists get a selectable list),
 saved file), **Settings** (theme, default quality, downloads at once, speed
 limit, proxy, storage folder, versions).
 
-- **Share → Arroxy.** The activity accepts `ACTION_SEND` text, so a link shared
+- **Share → Pingo.** The activity accepts `ACTION_SEND` text, so a link shared
   from YouTube or any app opens straight into its result. The first link in the
   shared text is kept, without tracking parameters.
 - **Quality choices** are the built-in download profiles (`best-quality`,
@@ -90,15 +95,15 @@ against what Android offers; each has a phone counterpart or a stated reason not
 | Desktop                                                               | Android                                                                                                                                                                                                      |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Global hotkey: queue the copied link with the active profile, no window | **"Download now"** share target (an `activity-alias`): queues a video with the active quality, confirms in a notification and returns to the app the link came from. A playlist still opens for review. |
-| Paste / drop a link                                                   | "Share → Arroxy" (review), **"Arroxy" in the selected-text menu** (`PROCESS_TEXT`), launcher shortcuts **Paste link** and **Downloads**, native Paste button.                                              |
-| Clipboard watch (only while the window is focused)                    | When Arroxy comes back to the front, a link copied since the last look is offered on Download. Only a newer clip is read (its timestamp is checked first), so Android's "pasted from clipboard" toast shows once per clip. Same setting, on by default. |
+| Paste / drop a link                                                   | "Share → Pingo" (review), **"Pingo" in the selected-text menu** (`PROCESS_TEXT`), launcher shortcuts **Paste link** and **Downloads**, native Paste button.                                              |
+| Clipboard watch (only while the window is focused)                    | When Pingo comes back to the front, a link copied since the last look is offered on Download. Only a newer clip is read (its timestamp is checked first), so Android's "pasted from clipboard" toast shows once per clip. Same setting, on by default. |
 | Tray: downloads go on with the window closed                          | Foreground service with a **live progress notification** (title, %, speed, ETA, waiting count) and a **Pause all** action.                                                                                 |
-| OS notifications                                                      | One notification per finished (tap opens the file) or failed download, while Arroxy is not in front.                                                                                                       |
+| OS notifications                                                      | One notification per finished (tap opens the file) or failed download, while Pingo is not in front.                                                                                                       |
 | Open folder / reveal file                                             | Open the Downloads app; open a saved file in the app the user picks; **share a saved file** through the share sheet.                                                                                      |
 | Cookies from a file                                                   | System file picker → private copy → `--cookies`, the desktop's `file` cookies mode.                                                                                                                        |
 | Save / upload diagnostics, feedback form                              | **Share details** on a failed download (title, link, reason, yt-dlp output, versions) through the share sheet.                                                                                             |
-| Share Arroxy                                                          | Settings → Share Arroxy, through the share sheet.                                                                                                                                                          |
-| Update banner                                                         | The latest GitHub release is offered (Download screen and Settings) when it is newer **and ships an APK**. Releases do not ship one yet, so nothing shows until the release pipeline publishes it.          |
+| Share Arroxy                                                          | Settings → Share Pingo, through the share sheet. About credits Arroxy and links its source.                                                                                                                                                          |
+| Update banner                                                         | The latest GitHub release is offered (Download screen and Settings) when it is newer **and ships a `pingo-*.apk`**. Releases do not ship one yet, so nothing shows until the release pipeline publishes it.          |
 | Window controls, zoom, GPU backdrop, close-to-tray choice             | Not applicable: the OS owns the task; text follows the system.                                                                                                                                             |
 | Explore (in-app browser sign-in)                                      | **Not ported.** Google refuses sign-in inside an embedded WebView, so the session could not be created; the cookies file covers age-restricted and members-only videos instead.                            |
 | Cookies from an installed browser                                     | Not possible: Android apps cannot read another app's cookies.                                                                                                                                              |
@@ -116,7 +121,7 @@ bun run android:sync         # bundle + copy into android/
 ```
 
 The APKs land in `android/app/build/outputs/apk/debug/`, one per ABI
-(`app-arm64-v8a-debug.apk` is the one for almost every current phone). Each ships
+(`pingo-arm64-v8a-debug.apk` is the one for almost every current phone). Each ships
 its own Python and ffmpeg. `bun run android:apk:release` builds unsigned release
 APKs; signing is not set up. The version name and code come from the root
 `package.json`.
@@ -128,7 +133,7 @@ APKs; signing is not set up. The version name and code come from the root
   where desktop would get them.
 - **Not on Android:** Explore sign-in and browser cookies (see the table above), subtitles and SponsorBlock
   choices, custom download profiles and filename templates, automatic retry,
-  playlist `.m3u`, choosing an output folder (everything goes to `Download/Arroxy`),
+  playlist `.m3u`, choosing an output folder (everything goes to `Download/Pingo`),
   diagnostics upload, in-app updates. Strings exist in English and Portuguese only.
 - **Android 10+ only** (`minSdk 29`), for MediaStore's `RELATIVE_PATH`.
 - **Not verified on a device in CI.** The workflow builds the APKs; the WebView

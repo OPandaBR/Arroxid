@@ -19,7 +19,7 @@ Public landing site (`orionus.dev/arroxy/`) lives in a separate repo: [`antonio-
 ## Index
 
 - [agent-setup.md](agent-setup.md) — Tool-neutral agent config: shared `.agents/` sources, `bun run agents:sync` adapters for Claude Code / Codex / OpenCode, and per-tool plugin installs (Superpowers, CodeGraph hook).
-- [android.md](android.md) — The Android shell: its own phone UI and visual identity over the shared `AppApi`, what runs in TypeScript vs. the native plugin, share-to-download, building the APK, and what is not supported yet.
+- [android.md](android.md) — Pingo, the Android shell: its own phone UI and visual identity over the shared `AppApi`, what runs in TypeScript vs. the native plugin, share-to-download, building the APK, and what is not supported yet.
 - [anti-slop-dryrun.md](anti-slop-dryrun.md) — Regenerated anti-slop findings, upstream provenance, and the selective six-rule adoption decision.
 - [binary-distribution.md](binary-distribution.md) — How embedded ffmpeg/ffprobe are fetched, verified, packed and located at runtime; license attribution; the upstream-source smoke scripts.
 - [ci-cd-strategy.md](ci-cd-strategy.md) — Single source of truth for CI/CD: every workflow with trigger and ownership, the startup-verification tiers, and `main`'s branch-protection contract.

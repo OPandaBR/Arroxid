@@ -254,6 +254,10 @@ _Avoid_: interface, abstraction, contract, boundary
 One shell's answer to a port — the real implementation, written in terms of what that shell actually has available.
 _Avoid_: provider, implementation, driver, binding
 
+**Pingo**:
+Arroxy on Android: the same core behind its own phone shell, with its own name and look. Settings, the queue and download behaviour mean the same things there.
+_Avoid_: Arroxy Mobile, Arroxy Android, the app (when the desktop app could be meant)
+
 **Composition root**:
 The single place in a shell where every part is constructed and wired together. Nothing else creates its own dependencies.
 _Avoid_: container, factory, bootstrap, entry point

@@ -266,7 +266,7 @@ export function createShellStore(api: AppApi, shell: AndroidUiShell, newId: () =
 			// The phone's diagnostics: the failure as text, for a chat or an issue report.
 			shareFailure: async item => {
 				const reason = item.error ? `${t(errorMessageKey(item.error.kind))}\n\n${item.error.raw}` : ''
-				await native.shareText(`${item.title}\n${item.url}\n\n${reason}\n\nArroxy ${window.appVersion} (Android)`.trim())
+				await native.shareText(`${item.title}\n${item.url}\n\n${reason}\n\nPingo ${window.appVersion} (Arroxy for Android)`.trim())
 			},
 
 			shareApp: async () => {

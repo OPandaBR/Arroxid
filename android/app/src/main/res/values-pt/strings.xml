@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="quick_share_label">Baixar agora</string>
-    <string name="process_text_label">Baixar com o Arroxy</string>
+    <string name="process_text_label">Baixar com o Pingo</string>
     <string name="shortcut_paste_short">Colar link</string>
     <string name="shortcut_paste_long">Colar um link copiado</string>
     <string name="shortcut_downloads_short">Downloads</string>

@@ -18,7 +18,7 @@ declare const __APP_VERSION__: string
 
 const native = createCapacitorAdapter()
 const storage = localStorageStore()
-const api = createAndroidAppApi({native, store: storage, publicDir: 'Download/Arroxy'})
+const api = createAndroidAppApi({native, store: storage, publicDir: 'Download/Pingo'})
 window.appApi = api
 window.platform = 'android'
 window.appVersion = __APP_VERSION__

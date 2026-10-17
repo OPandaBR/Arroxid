@@ -8,7 +8,7 @@ import {z} from 'zod'
 export interface NativeInfo {
 	// Absolute app-private directory where yt-dlp writes; never user-visible.
 	workDir: string
-	// Where finished files land, as the user sees it (e.g. `Download/Arroxy`).
+	// Where finished files land, as the user sees it (e.g. `Download/Pingo`).
 	publicDir: string
 	ytDlpVersion: string | null
 }

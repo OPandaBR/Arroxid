@@ -2,7 +2,8 @@
 
 The Android app runs the queue, probe mapping, yt-dlp argv planning and job
 building in a Capacitor WebView, in the same TypeScript desktop uses. Its
-interface is its own, built for a phone, with its own visual identity; it talks
+interface is its own, built for a phone, with its own visual identity and its
+own name, **Pingo**; it talks
 to core through the same `AppApi` contract as the desktop renderer. Native code
 (one Capacitor plugin) only runs yt-dlp, cancels it, moves finished files into
 shared storage, opens them, and hands over shared text. yt-dlp, Python and ffmpeg

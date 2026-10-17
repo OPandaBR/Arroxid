@@ -5,7 +5,7 @@ import {progressNotice, resultNotice} from '../../src/android/ui/notices.js'
 import {pickAndroidUpdate} from '../../src/android/updateCheck.js'
 import {makeItem} from '../shared/fixtures.js'
 
-const COMMON = defaultAppSettings('Download/Arroxy').common
+const COMMON = defaultAppSettings('Download/Pingo').common
 
 describe('cookies on Android', () => {
 	it('passes the imported cookies file to every run, like desktop file mode', () => {
@@ -41,8 +41,8 @@ describe('progress notification', () => {
 describe('result notification', () => {
 	it('fires once when an item finishes, pointing at its media file', () => {
 		const before = makeItem({id: 'a', status: 'running', title: 'Song'})
-		const after = {...makeItem({id: 'a', status: 'done', title: 'Song'}), artifacts: [{id: 'x', kind: 'media' as const, path: 'Download/Arroxy/Song.mp4', fileName: 'Song.mp4', discoveredAt: 'now'}]}
-		expect(resultNotice(before, after)).toMatchObject({text: 'Song', relativePath: 'Download/Arroxy/Song.mp4'})
+		const after = {...makeItem({id: 'a', status: 'done', title: 'Song'}), artifacts: [{id: 'x', kind: 'media' as const, path: 'Download/Pingo/Song.mp4', fileName: 'Song.mp4', discoveredAt: 'now'}]}
+		expect(resultNotice(before, after)).toMatchObject({text: 'Song', relativePath: 'Download/Pingo/Song.mp4'})
 		expect(resultNotice(after, after)).toBeNull()
 	})
 
@@ -57,14 +57,14 @@ describe('result notification', () => {
 describe('update check', () => {
 	const release = (tag: string, assets: string[]): unknown => ({tag_name: tag, html_url: `https://github.com/x/releases/tag/${tag}`, assets: assets.map(name => ({name, browser_download_url: `https://dl/${name}`}))})
 
-	it('offers a newer release only when it ships an Android APK', () => {
-		expect(pickAndroidUpdate(release('v0.6.0', ['Arroxy-android-arm64-v8a.apk', 'Arroxy-Setup.exe']), '0.5.2')).toEqual({version: '0.6.0', url: 'https://github.com/x/releases/tag/v0.6.0'})
-		expect(pickAndroidUpdate(release('v0.6.0', ['Arroxy-Setup.exe']), '0.5.2')).toBeNull()
+	it('offers a newer release only when it ships a Pingo APK', () => {
+		expect(pickAndroidUpdate(release('v0.6.0', ['pingo-arm64-v8a-release.apk', 'Arroxy-Setup.exe']), '0.5.2')).toEqual({version: '0.6.0', url: 'https://github.com/x/releases/tag/v0.6.0'})
+		expect(pickAndroidUpdate(release('v0.6.0', ['Arroxy-Setup.exe', 'other-app.apk']), '0.5.2')).toBeNull()
 	})
 
 	it('ignores the same or an older version, and malformed replies', () => {
-		expect(pickAndroidUpdate(release('v0.5.2', ['a.apk']), '0.5.2')).toBeNull()
-		expect(pickAndroidUpdate(release('v0.4.9', ['a.apk']), '0.5.2')).toBeNull()
+		expect(pickAndroidUpdate(release('v0.5.2', ['pingo-arm64-v8a-release.apk']), '0.5.2')).toBeNull()
+		expect(pickAndroidUpdate(release('v0.4.9', ['pingo-arm64-v8a-release.apk']), '0.5.2')).toBeNull()
 		expect(pickAndroidUpdate({nope: true}, '0.5.2')).toBeNull()
 	})
 })

@@ -1,4 +1,4 @@
-// What Arroxy shows in Android's notification shade: the ongoing progress
+// What Pingo shows in Android's notification shade: the ongoing progress
 // notice (the desktop tray's job) and one notice per finished or failed item
 // (the desktop's OS notifications). Pure.
 
@@ -41,7 +41,7 @@ const PROGRESS_THROTTLE_MS = 1000
 type NoticePort = Pick<AndroidNativePort, 'setProgressNotice' | 'showResult' | 'onNotificationAction'>
 
 // Keeps the notification shade in step with the queue. Result notices only
-// show while Arroxy is not in front: in front, the Downloads screen says it.
+// show while Pingo is not in front: in front, the Downloads screen says it.
 export function watchQueueNotices(api: AppApi, native: NoticePort, inForeground: () => boolean): void {
 	const items = new Map<string, QueueItem>()
 	let lastSent = 0

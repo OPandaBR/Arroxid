@@ -1,5 +1,5 @@
-// The Android take on the desktop update banner: look at the latest GitHub
-// release and offer it only when it is newer and actually ships an APK
+// Pingo's take on the desktop update banner: look at the latest Arroxy release
+// on GitHub and offer it only when it is newer and actually ships a Pingo APK
 // (releases are cut for desktop first). The reply crosses a trust boundary.
 
 import {z} from 'zod'
@@ -35,7 +35,7 @@ export function pickAndroidUpdate(raw: unknown, currentVersion: string): Android
 	const parsed = releaseSchema.safeParse(raw)
 	if (!parsed.success) return null
 	const release = parsed.data
-	if (!release.assets.some(asset => asset.name.toLowerCase().endsWith('.apk'))) return null
+	if (!release.assets.some(asset => /^pingo-.*\.apk$/i.test(asset.name))) return null
 	const version = release.tag_name.replace(/^v/, '')
 	return isNewer(version, currentVersion) ? {version, url: release.html_url} : null
 }

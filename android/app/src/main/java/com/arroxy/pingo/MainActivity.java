@@ -1,4 +1,4 @@
-package com.arroxy.app;
+package com.arroxy.pingo;
 
 import android.os.Bundle;
 import androidx.core.splashscreen.SplashScreen;

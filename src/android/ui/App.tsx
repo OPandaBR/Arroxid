@@ -89,7 +89,7 @@ function NavigationBar(): ReactNode {
 	const setTab = useShell(state => state.setTab)
 	const activeCount = useShell(state => state.items.filter(item => !isFinished(item)).length)
 	return (
-		<nav className="pb-safe border-t border-line bg-surface" aria-label="Arroxy">
+		<nav className="pb-safe border-t border-line bg-surface" aria-label="Pingo">
 			<div className="flex h-20 items-center">
 				{TABS.map(entry => {
 					const selected = entry.tab === tab
@@ -121,7 +121,7 @@ export function App({setDarkSystemBars}: {setDarkSystemBars: (dark: boolean) => 
 	useEffect(() => {
 		mainRef.current?.scrollTo({top: 0})
 	}, [tab])
-	// Coming back to Arroxy is the moment the desktop watcher would look at the clipboard.
+	// Coming back to Pingo is the moment the desktop watcher would look at the clipboard.
 	const checkClipboard = useShell(state => state.checkClipboard)
 	useEffect(() => {
 		const onVisible = (): void => {

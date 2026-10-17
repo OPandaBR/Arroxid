@@ -1,4 +1,4 @@
-package com.arroxy.app;
+package com.arroxy.pingo;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -16,10 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** The public Download/Arroxy folder, reached through MediaStore (no storage permission needed). */
+/** The public Download/Pingo folder, reached through MediaStore (no storage permission needed). */
 final class SharedStorage {
 
-    static final String PUBLIC_SUBDIR = "Arroxy";
+    static final String PUBLIC_SUBDIR = "Pingo";
     static final String PUBLIC_DIR_LABEL = "Download/" + PUBLIC_SUBDIR;
 
     record Published(String name, String relativePath, long sizeBytes) {}
@@ -28,7 +28,7 @@ final class SharedStorage {
 
     private SharedStorage() {}
 
-    /** Copies every finished file under {@code root} into Download/Arroxy, keeping subfolders. */
+    /** Copies every finished file under {@code root} into Download/Pingo, keeping subfolders. */
     static List<Published> publish(Context context, File root) throws IOException {
         List<Published> out = new ArrayList<>();
         for (File file : listFiles(root)) {

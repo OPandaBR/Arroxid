@@ -24,14 +24,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- "Share → Arroxy" from any app that shares a link as text: opens the review. -->
+            <!-- "Share → Pingo" from any app that shares a link as text: opens the review. -->
             <intent-filter android:label="@string/share_target_label">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
-            <!-- "Arroxy" in the floating menu over selected text. -->
+            <!-- "Pingo" in the floating menu over selected text. -->
             <intent-filter android:label="@string/process_text_label">
                 <action android:name="android.intent.action.PROCESS_TEXT" />
                 <category android:name="android.intent.category.DEFAULT" />

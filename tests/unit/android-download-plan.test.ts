@@ -4,7 +4,7 @@ import {queueItemSchema} from '@shared/queueItemSchema.js'
 import type {PlaylistProbeResult, VideoProbeResult} from '@shared/types.js'
 import {activeQuality, linkFromSharedText, planQueueItems, profileRefFor} from '../../src/android/ui/downloadPlan.js'
 
-const SETTINGS = defaultAppSettings('Download/Arroxy')
+const SETTINGS = defaultAppSettings('Download/Pingo')
 const NOW = '2026-10-17T00:00:00.000Z'
 
 const VIDEO: VideoProbeResult = {

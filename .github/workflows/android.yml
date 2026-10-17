@@ -1,7 +1,7 @@
-name: Android
+name: Android (Pingo)
 
-# Builds the Android shell: the renderer bundle for the WebView, then one debug
-# APK per ABI. Runs when the Android shell or the code it reuses changes, and on
+# Builds Pingo, Arroxy's Android app: the WebView bundle, then one debug APK
+# per ABI (pingo-<abi>-debug.apk). Runs when the Android shell or the code it reuses changes, and on
 # demand. Publishing an Android release is not wired up yet.
 
 on:
@@ -56,6 +56,6 @@ jobs:
       - name: Upload APKs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: arroxy-android-debug
+          name: pingo-android-debug
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

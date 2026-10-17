@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 import groovy.json.JsonSlurper
 
-// The app version is package.json's, so Android and desktop releases agree.
+// Pingo is Arroxy's Android app: its version is package.json's, so both release together.
 def arroxyVersion = new JsonSlurper().parse(rootProject.file('../package.json')).version
 
 // 0.5.2 -> 5002, 1.2.3-beta.4 -> 1002003 (pre-release suffix ignored).
@@ -11,11 +11,14 @@ static int arroxyVersionCode(String version) {
     return major * 1_000_000 + minor * 1_000 + patch
 }
 
+// APKs come out as pingo-<abi>-<buildType>.apk.
+base.archivesName = "pingo"
+
 android {
-    namespace = "com.arroxy.app"
+    namespace = "com.arroxy.pingo"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.arroxy.app"
+        applicationId "com.arroxy.pingo"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode arroxyVersionCode(arroxyVersion)

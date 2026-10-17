@@ -25,7 +25,7 @@ function Row({label, hint, children}: {label: string; hint?: string; children?: 
 		<div className="flex min-h-16 items-center gap-3 px-5 py-3">
 			<div className="min-w-0 flex-1">
 				<p className="text-[15px] text-ink">{label}</p>
-				{hint ? <p className="mt-0.5 break-all text-[13px] text-muted">{hint}</p> : null}
+				{hint ? <p className="mt-0.5 text-[13px] text-muted wrap-anywhere">{hint}</p> : null}
 			</div>
 			{children}
 		</div>
@@ -156,7 +156,7 @@ export function SettingsScreen(): ReactNode {
 					<Row label={t('settings.version')} hint={window.appVersion} />
 					<Row label={t('settings.engine')} hint={boot.kind === 'ready' ? (boot.ytDlpVersion ?? '—') : '—'} />
 					<button type="button" onClick={() => void api?.shell.openExternal(SOURCE_URL)} className="flex w-full items-center text-left active:bg-surface-2">
-						<Row label={t('settings.source')} hint={SOURCE_URL.replace('https://', '')}>
+						<Row label={t('settings.source')} hint={`${t('settings.basedOn')} · ${SOURCE_URL.replace('https://', '')}`}>
 							<ExternalLink size={18} className="text-muted" />
 						</Row>
 					</button>

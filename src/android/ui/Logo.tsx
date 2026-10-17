@@ -1,6 +1,6 @@
 import {useId, type ReactNode} from 'react'
 
-// The Android mark: a drop (a file falling into the phone) on an ember tile,
+// Pingo's mark: a drop (a file falling into the phone) on an ember tile,
 // with the arrow cut out of it and the ground it lands on.
 export function LogoMark({size = 48, className}: {size?: number; className?: string}): ReactNode {
 	const id = useId()
@@ -28,7 +28,7 @@ export function LogoMark({size = 48, className}: {size?: number; className?: str
 export function Wordmark({className}: {className?: string}): ReactNode {
 	return (
 		<span className={className}>
-			arroxy<span className="text-ember">.</span>
+			pingo<span className="text-ember">.</span>
 		</span>
 	)
 }

@@ -8,9 +8,9 @@
         android:shortcutShortLabel="@string/shortcut_paste_short"
         android:shortcutLongLabel="@string/shortcut_paste_long">
         <intent
-            android:action="com.arroxy.app.PASTE_LINK"
-            android:targetPackage="com.arroxy.app"
-            android:targetClass="com.arroxy.app.MainActivity" />
+            android:action="com.arroxy.pingo.PASTE_LINK"
+            android:targetPackage="com.arroxy.pingo"
+            android:targetClass="com.arroxy.pingo.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="open_downloads"
@@ -19,8 +19,8 @@
         android:shortcutShortLabel="@string/shortcut_downloads_short"
         android:shortcutLongLabel="@string/shortcut_downloads_long">
         <intent
-            android:action="com.arroxy.app.OPEN_DOWNLOADS"
-            android:targetPackage="com.arroxy.app"
-            android:targetClass="com.arroxy.app.MainActivity" />
+            android:action="com.arroxy.pingo.OPEN_DOWNLOADS"
+            android:targetPackage="com.arroxy.pingo"
+            android:targetClass="com.arroxy.pingo.MainActivity" />
     </shortcut>
 </shortcuts>

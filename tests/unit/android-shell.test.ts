@@ -9,7 +9,7 @@ import {mediaArgs, probeArgs} from '../../src/android/ytDlpArgs.js'
 import {makeItem} from '../shared/fixtures.js'
 import {quietNative} from '../helpers/androidNative.js'
 
-const COMMON = defaultAppSettings('Download/Arroxy').common
+const COMMON = defaultAppSettings('Download/Pingo').common
 const OK_RUN: YtDlpRun = {exitCode: 0, stdout: '', stderr: '', cancelled: false}
 
 interface PendingRun {
@@ -30,7 +30,7 @@ function fakeNative(): {native: AndroidNativePort; runs: PendingRun[]; removed: 
 			run?.finish({exitCode: 1, stdout: '', stderr: '', cancelled: true})
 			return Promise.resolve()
 		},
-		publish: () => Promise.resolve([{name: 'Video [abc].mp4', relativePath: 'Download/Arroxy/Video [abc].mp4', sizeBytes: 1024}]),
+		publish: () => Promise.resolve([{name: 'Video [abc].mp4', relativePath: 'Download/Pingo/Video [abc].mp4', sizeBytes: 1024}]),
 		removeDir: dir => {
 			removed.push(dir)
 			return Promise.resolve()
@@ -180,8 +180,8 @@ describe('Android storage', () => {
 	}
 
 	it('falls back to defaults for corrupt settings and rejects an invalid patch', () => {
-		const settings = new AndroidSettingsStore(memoryStore({'arroxy:android:settings': '{not json'}), defaultAppSettings('Download/Arroxy'))
-		expect(settings.get().common.defaultOutputDir).toBe('Download/Arroxy')
+		const settings = new AndroidSettingsStore(memoryStore({'arroxy:android:settings': '{not json'}), defaultAppSettings('Download/Pingo'))
+		expect(settings.get().common.defaultOutputDir).toBe('Download/Pingo')
 		expect(settings.update({common: {defaultOutputDir: ''}}).ok).toBe(false)
 		expect(settings.update({common: {uiTheme: 'dark'}}).ok).toBe(true)
 	})

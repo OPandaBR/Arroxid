@@ -1,4 +1,4 @@
-package com.arroxy.app;
+package com.arroxy.pingo;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -9,7 +9,7 @@ import android.content.Intent;
 import androidx.core.app.NotificationCompat;
 
 /**
- * Arroxy's notifications: the ongoing one that carries live download progress
+ * Pingo's notifications: the ongoing one that carries live download progress
  * (the phone's take on the desktop tray), and one per finished or failed item
  * (the desktop's OS notifications).
  */
@@ -19,7 +19,7 @@ final class DownloadNotifications {
     static final String CHANNEL_RESULTS = "results";
     static final int PROGRESS_ID = 1;
     // Broadcast fired by the progress notification's buttons; the plugin relays it to JS.
-    static final String ACTION_NOTIFICATION = "com.arroxy.app.NOTIFICATION_ACTION";
+    static final String ACTION_NOTIFICATION = "com.arroxy.pingo.NOTIFICATION_ACTION";
     static final String EXTRA_ACTION = "action";
 
     /** What the ongoing notification shows; percent < 0 means indeterminate. */

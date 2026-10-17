@@ -1,6 +1,6 @@
 import type {AndroidNativePort, NativeInfo} from '../../src/android/nativePort.js'
 
-const INFO: NativeInfo = {workDir: '/data/work', publicDir: 'Download/Arroxy', ytDlpVersion: '2026.10.01'}
+const INFO: NativeInfo = {workDir: '/data/work', publicDir: 'Download/Pingo', ytDlpVersion: '2026.10.01'}
 
 // An Android native side that does nothing, for tests to override piece by piece.
 export function quietNative(overrides: Partial<AndroidNativePort> = {}): AndroidNativePort {
