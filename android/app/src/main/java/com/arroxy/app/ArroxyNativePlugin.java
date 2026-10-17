@@ -5,6 +5,7 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.webkit.MimeTypeMap;
@@ -45,6 +46,67 @@ public class ArroxyNativePlugin extends Plugin {
     private static final String PUBLIC_DIR_LABEL = "Download/" + PUBLIC_SUBDIR;
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
+
+    // Text shared into the app ("Share → Arroxy"), held until the UI takes it.
+    private String pendingShare = null;
+
+    @Override
+    public void load() {
+        rememberShare(getActivity().getIntent());
+    }
+
+    @Override
+    protected void handleOnNewIntent(Intent intent) {
+        super.handleOnNewIntent(intent);
+        if (rememberShare(intent)) notifyListeners("sharedText", new JSObject());
+    }
+
+    private boolean rememberShare(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return false;
+        String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+        if (text == null || text.isEmpty()) return false;
+        synchronized (this) {
+            pendingShare = text;
+        }
+        return true;
+    }
+
+    @PluginMethod
+    public void takeSharedText(PluginCall call) {
+        JSObject result = new JSObject();
+        synchronized (this) {
+            result.put("text", pendingShare == null ? JSObject.NULL : pendingShare);
+            pendingShare = null;
+        }
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openFile(PluginCall call) {
+        String relativePath = call.getString("relativePath", "");
+        int slash = relativePath.lastIndexOf('/');
+        if (slash <= 0) {
+            call.reject("not a file path: " + relativePath);
+            return;
+        }
+        String dir = relativePath.substring(0, slash + 1);
+        String name = relativePath.substring(slash + 1);
+        ContentResolver resolver = getContext().getContentResolver();
+        String[] projection = {MediaStore.Downloads._ID, MediaStore.Downloads.MIME_TYPE};
+        String selection = MediaStore.Downloads.RELATIVE_PATH + "=? AND " + MediaStore.Downloads.DISPLAY_NAME + "=?";
+        try (Cursor cursor = resolver.query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, new String[] {dir, name}, null)) {
+            if (cursor == null || !cursor.moveToFirst()) {
+                call.reject("file not found: " + relativePath);
+                return;
+            }
+            Uri uri = Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, String.valueOf(cursor.getLong(0)));
+            Intent view = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, cursor.getString(1)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(Intent.createChooser(view, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("cannot open " + relativePath + ": " + e.getMessage(), e);
+        }
+    }
 
     private File workDir() {
         File dir = new File(getContext().getFilesDir(), "arroxy");
@@ -164,10 +226,11 @@ public class ArroxyNativePlugin extends Plugin {
                 for (File file : listFiles(root)) {
                     String relative = root.toURI().relativize(file.getParentFile().toURI()).getPath();
                     String relativeDir = PUBLIC_SUBDIR + (relative.isEmpty() ? "" : "/" + relative.replaceAll("/$", ""));
-                    copyToDownloads(file, relativeDir);
+                    // MediaStore renames on a clash ("clip (1).mp4"), so report the name it kept.
+                    String savedName = copyToDownloads(file, relativeDir);
                     JSObject entry = new JSObject();
-                    entry.put("name", file.getName());
-                    entry.put("relativePath", "Download/" + relativeDir + "/" + file.getName());
+                    entry.put("name", savedName);
+                    entry.put("relativePath", "Download/" + relativeDir + "/" + savedName);
                     entry.put("sizeBytes", file.length());
                     files.put(entry);
                 }
@@ -230,7 +293,7 @@ public class ArroxyNativePlugin extends Plugin {
         return out;
     }
 
-    private void copyToDownloads(File file, String relativeDir) throws IOException {
+    private String copyToDownloads(File file, String relativeDir) throws IOException {
         ContentResolver resolver = getContext().getContentResolver();
         String extension = MimeTypeMap.getFileExtensionFromUrl(Uri.fromFile(file).toString());
         String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension.toLowerCase(Locale.ROOT));
@@ -253,6 +316,9 @@ public class ArroxyNativePlugin extends Plugin {
         values.clear();
         values.put(MediaStore.Downloads.IS_PENDING, 0);
         resolver.update(target, values, null, null);
+        try (Cursor cursor = resolver.query(target, new String[] {MediaStore.Downloads.DISPLAY_NAME}, null, null, null)) {
+            return cursor != null && cursor.moveToFirst() ? cursor.getString(0) : file.getName();
+        }
     }
 
     private static void deleteRecursively(File file) {

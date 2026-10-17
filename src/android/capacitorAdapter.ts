@@ -1,8 +1,8 @@
-// AndroidNativePort backed by the Kotlin `ArroxyNative` Capacitor plugin
-// (android/app/src/main/java/com/arroxy/app/ArroxyNativePlugin.kt).
+// AndroidNativePort backed by the `ArroxyNative` Capacitor plugin
+// (android/app/src/main/java/com/arroxy/app/ArroxyNativePlugin.java).
 
 import {registerPlugin, type PluginListenerHandle} from '@capacitor/core'
-import {parseNativeInfo, parsePublished, parseRunLine, parseYtDlpRun, parseYtDlpUpdate, type AndroidNativePort} from './nativePort.js'
+import {parseNativeInfo, parsePublished, parseRunLine, parseSharedText, parseYtDlpRun, parseYtDlpUpdate, type AndroidNativePort} from './nativePort.js'
 
 // Raw plugin surface: every reply is `unknown` until nativePort.ts parses it.
 interface ArroxyNativePlugin {
@@ -13,8 +13,10 @@ interface ArroxyNativePlugin {
 	publish(input: {dir: string}): Promise<unknown>
 	removeDir(input: {dir: string}): Promise<unknown>
 	openDownloads(): Promise<unknown>
+	openFile(input: {relativePath: string}): Promise<unknown>
 	openExternal(input: {url: string}): Promise<unknown>
-	addListener(eventName: 'runLine', listener: (event: unknown) => void): Promise<PluginListenerHandle>
+	takeSharedText(): Promise<unknown>
+	addListener(eventName: 'runLine' | 'sharedText', listener: (event: unknown) => void): Promise<PluginListenerHandle>
 }
 
 export function createCapacitorAdapter(): AndroidNativePort {
@@ -24,6 +26,8 @@ export function createCapacitorAdapter(): AndroidNativePort {
 		const parsed = parseRunLine(event)
 		if (parsed) lineListeners.get(parsed.runId)?.(parsed.line)
 	})
+	const shareListeners = new Set<() => void>()
+	void plugin.addListener('sharedText', () => shareListeners.forEach(listener => listener()))
 
 	return {
 		prepare: async () => parseNativeInfo(await plugin.prepare()),
@@ -46,8 +50,16 @@ export function createCapacitorAdapter(): AndroidNativePort {
 		openDownloads: async () => {
 			await plugin.openDownloads()
 		},
+		openFile: async relativePath => {
+			await plugin.openFile({relativePath})
+		},
 		openExternal: async url => {
 			await plugin.openExternal({url})
+		},
+		takeSharedText: async () => parseSharedText(await plugin.takeSharedText()),
+		onShareArrived: listener => {
+			shareListeners.add(listener)
+			return () => shareListeners.delete(listener)
 		}
 	}
 }

@@ -37,7 +37,10 @@ function fakeNative(): {native: AndroidNativePort; runs: PendingRun[]; removed: 
 			return Promise.resolve()
 		},
 		openDownloads: () => Promise.resolve(),
-		openExternal: () => Promise.resolve()
+		openFile: () => Promise.resolve(),
+		openExternal: () => Promise.resolve(),
+		takeSharedText: () => Promise.resolve(null),
+		onShareArrived: () => () => undefined
 	}
 	return {native, runs, removed}
 }

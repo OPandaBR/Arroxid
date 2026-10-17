@@ -43,7 +43,13 @@ export interface AndroidNativePort {
 	publish(dir: string): Promise<PublishedFile[]>
 	removeDir(dir: string): Promise<void>
 	openDownloads(): Promise<void>
+	// Opens one published file (its `relativePath`) in the app the user picks.
+	openFile(relativePath: string): Promise<void>
 	openExternal(url: string): Promise<void>
+	// Text another app shared into Arroxy, handed out once.
+	takeSharedText(): Promise<string | null>
+	// Fires when a share arrives while the app is running; take it with takeSharedText().
+	onShareArrived(listener: () => void): () => void
 }
 
 const nativeInfoSchema = z.object({workDir: z.string().min(1), publicDir: z.string().min(1), ytDlpVersion: z.string().nullable()})
@@ -51,6 +57,7 @@ const ytDlpUpdateSchema = z.object({updated: z.boolean(), ytDlpVersion: z.string
 const ytDlpRunSchema = z.object({exitCode: z.number().int(), stdout: z.string(), stderr: z.string(), cancelled: z.boolean()})
 const publishSchema = z.object({files: z.array(z.object({name: z.string().min(1), relativePath: z.string().min(1), sizeBytes: z.number().int().nonnegative()}))})
 const runLineSchema = z.object({runId: z.string(), line: z.string()})
+const sharedTextSchema = z.object({text: z.string().nullable()})
 
 export function parseNativeInfo(raw: unknown): NativeInfo {
 	return nativeInfoSchema.parse(raw)
@@ -66,6 +73,10 @@ export function parseYtDlpRun(raw: unknown): YtDlpRun {
 
 export function parsePublished(raw: unknown): PublishedFile[] {
 	return publishSchema.parse(raw).files
+}
+
+export function parseSharedText(raw: unknown): string | null {
+	return sharedTextSchema.parse(raw).text
 }
 
 export function parseRunLine(raw: unknown): {runId: string; line: string} | null {

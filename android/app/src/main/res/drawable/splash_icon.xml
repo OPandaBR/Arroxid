@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ splash icon: the ember tile and drop, inside the 192dp visible circle. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="288"
+    android:viewportHeight="288">
+    <path android:pathData="M110,78h68a32,32 0,0 1,32 32v68a32,32 0,0 1,-32 32h-68a32,32 0,0 1,-32 -32v-68a32,32 0,0 1,32 -32z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="78" android:startY="78" android:endX="210" android:endY="210">
+                <item android:offset="0" android:color="#FF8A5B" />
+                <item android:offset="1" android:color="#D9431C" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <group android:scaleX="2.2" android:scaleY="2.2" android:translateX="91.2" android:translateY="87.9">
+        <path android:fillColor="#FFF5EC" android:pathData="M24,8C24,8 13.5,20.5 13.5,27.5A10.5,10.5 0,0 0,34.5 27.5C34.5,20.5 24,8 24,8Z" />
+        <path android:strokeColor="#E6512A" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M24,18.5V31.5M18.8,26.6L24,31.8L29.2,26.6" />
+        <path android:strokeColor="#FFF5EC" android:strokeAlpha="0.7" android:strokeWidth="3.2" android:strokeLineCap="round" android:pathData="M16.5,43H31.5" />
+    </group>
+</vector>

@@ -8,8 +8,6 @@ const drag: React.CSSProperties = {WebkitAppRegion: 'drag'} as React.CSSProperti
 const noDrag: React.CSSProperties = {WebkitAppRegion: 'no-drag'} as React.CSSProperties
 
 const isMac = window.platform === 'darwin'
-// Android has no window to minimize or close: the OS owns the task.
-const hasWindowControls = window.platform !== 'android'
 
 function WinLinuxControls({isMaximized}: {isMaximized: boolean}): ReactNode {
 	const {t} = useTranslation()
@@ -45,7 +43,7 @@ export function TitleBar(): ReactNode {
 				Arroxy
 			</span>
 
-			{!isMac && hasWindowControls && <WinLinuxControls isMaximized={isMaximized} />}
+			{!isMac && <WinLinuxControls isMaximized={isMaximized} />}
 		</div>
 	)
 }
